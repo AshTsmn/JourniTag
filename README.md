@@ -11,7 +11,7 @@ JourniTag/
 │   ├── bin/          # Executable scripts
 │   ├── sql/          # Database schemas and data
 │   └── requirements.txt
-├── frontend/         # React + Vite frontend
+├── frontend/         # TypeScript React + Vite frontend
 │   ├── src/          # Source code
 │   ├── public/       # Static assets
 │   └── package.json
@@ -92,6 +92,7 @@ JourniTag/
 - **Development:** `npm run dev`
 - **Build:** `npm run build`
 - **Preview:** `npm run preview`
+- **Type check:** `npx tsc --noEmit`
 
 ## Running Both Services
 
