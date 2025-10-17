@@ -1,31 +1,26 @@
 # Python
-*.pyc
 __pycache__/
-*.egg-info*
-dist/
-env/
-venv/
-venv3/
-.venv/
-.pytest_cache
-
-# JavaScript & Node.js
-node_modules/
-bundle.js
-*.js.map
-
-# Databases
+*.py[cod]
+*$py.class
+*.so
+.Python
 *.db
-var/
 
-# Text editors and IDEs
+# Node
+node_modules/
+dist/
+*.log
+
+# Environment
+.env
+.venv
+venv/
+
+# IDE
 .vscode/
-.idea
-*.lock
+.idea/
+*.swp
+*.swo
 
-# macOS system files
-*.DS_Store
-
-# Temporary & Build Files
-tmp/
-output/
+# OS
+.DS_Store
