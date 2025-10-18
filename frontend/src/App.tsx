@@ -1,16 +1,66 @@
 import { useState } from 'react'
 import { MapView } from '@/components/map'
+import { Sidebar, SidebarView } from '@/components/sidebar/Sidebar'
+import { SidebarHome } from '@/components/sidebar/SidebarHome'
+import { LocationDetailView } from '@/components/location/LocationDetailView'
+import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { usePhotos } from '@/hooks/usePhotos'
-import type { Photo } from '@/types'
+import { getLocationWithPhotos } from '@/lib/mockData'
+import type { Photo, Location, Trip } from '@/types'
 import './App.css'
 
 function App() {
   const { photos, loading } = usePhotos()
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
+  const [sidebarView, setSidebarView] = useState<SidebarView>('home')
+  const [isEditing, setIsEditing] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
+  const [locationPhotos, setLocationPhotos] = useState<Photo[]>([])
 
   const handlePhotoClick = (photo: Photo) => {
-    setSelectedPhoto(photo)
     console.log('Photo clicked:', photo)
+
+    // Get location with all photos
+    if (photo.location_id) {
+      const locationWithPhotos = getLocationWithPhotos(photo.location_id)
+      if (locationWithPhotos) {
+        setSelectedLocation(locationWithPhotos)
+        setLocationPhotos(locationWithPhotos.photos || [])
+        setSidebarView('location-detail')
+        setIsEditing(false)
+      }
+    }
+  }
+
+  const handleBackToHome = () => {
+    setSidebarView('home')
+    setSelectedLocation(null)
+    setLocationPhotos([])
+    setIsEditing(false)
+  }
+
+  const handleEditClick = () => {
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+  }
+
+  const handleSaveLocation = (location: Location) => {
+    console.log('Saving location:', location)
+    // Backend: Call locationAPI.updateLocation(location)
+    setSelectedLocation(location)
+    setIsEditing(false)
+  }
+
+  const handleTripClick = (trip: Trip) => {
+    console.log('Trip clicked:', trip)
+    // TODO: Navigate to trip view
+  }
+
+  const handleUploadClick = () => {
+    console.log('Upload clicked')
+    // TODO: Open upload modal
   }
 
   if (loading) {
@@ -22,27 +72,34 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-screen relative">
-      <MapView photos={photos} onPhotoClick={handlePhotoClick} />
+    <div className="h-screen w-screen flex">
+      {/* Sidebar */}
+      <Sidebar view={sidebarView}>
+        {sidebarView === 'home' ? (
+          <SidebarHome onTripClick={handleTripClick} onUploadClick={handleUploadClick} />
+        ) : selectedLocation ? (
+          isEditing ? (
+            <LocationDetailEdit
+              location={selectedLocation}
+              photos={locationPhotos}
+              onCancel={handleCancelEdit}
+              onSave={handleSaveLocation}
+            />
+          ) : (
+            <LocationDetailView
+              location={selectedLocation}
+              photos={locationPhotos}
+              onBack={handleBackToHome}
+              onEdit={handleEditClick}
+            />
+          )
+        ) : null}
+      </Sidebar>
 
-      {/* Selected photo info - temporary debug */}
-      {selectedPhoto && (
-        <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg max-w-sm z-[1000]">
-          <img
-            src={selectedPhoto.file_url}
-            alt={selectedPhoto.original_filename}
-            className="w-full h-32 object-cover rounded mb-2"
-          />
-          <p className="font-semibold">{selectedPhoto.location?.name}</p>
-          <p className="text-sm text-gray-600">{selectedPhoto.location?.address}</p>
-          <button
-            onClick={() => setSelectedPhoto(null)}
-            className="mt-2 text-sm text-blue-600 hover:underline"
-          >
-            Close
-          </button>
-        </div>
-      )}
+      {/* Map - offset by sidebar width */}
+      <div className="flex-1" style={{ marginLeft: sidebarView === 'home' ? '360px' : '400px' }}>
+        <MapView photos={photos} onPhotoClick={handlePhotoClick} enableClustering={true} />
+      </div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { PhotoMarker } from './PhotoMarker'
 import { ClusterLayer } from './ClusterLayer'
 import { useMapState } from '@/hooks/useMapState'
 import type { Photo } from '@/types'
+import L from 'leaflet'
 
 interface MapViewProps {
   photos: Photo[]
@@ -51,7 +52,11 @@ export function MapView({ photos, onPhotoClick, className, enableClustering = tr
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url={"https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" + (L.Browser.retina ? '@2x.png' : '.png')}
+          subdomains='abcd'
+          minZoom={0}
+          maxZoom={20}
+          // url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         <MapController center={mapState.center} zoom={mapState.zoom} />
