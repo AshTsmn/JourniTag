@@ -1,34 +1,49 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { MapView } from '@/components/map'
+import { usePhotos } from '@/hooks/usePhotos'
+import type { Photo } from '@/types'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState<number>(0)
+  const { photos, loading } = usePhotos()
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
+
+  const handlePhotoClick = (photo: Photo) => {
+    setSelectedPhoto(photo)
+    console.log('Photo clicked:', photo)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-lg">Loading photos...</p>
+      </div>
+    )
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="h-screen w-screen relative">
+      <MapView photos={photos} onPhotoClick={handlePhotoClick} />
+
+      {/* Selected photo info - temporary debug */}
+      {selectedPhoto && (
+        <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg max-w-sm z-[1000]">
+          <img
+            src={selectedPhoto.file_url}
+            alt={selectedPhoto.original_filename}
+            className="w-full h-32 object-cover rounded mb-2"
+          />
+          <p className="font-semibold">{selectedPhoto.location?.name}</p>
+          <p className="text-sm text-gray-600">{selectedPhoto.location?.address}</p>
+          <button
+            onClick={() => setSelectedPhoto(null)}
+            className="mt-2 text-sm text-blue-600 hover:underline"
+          >
+            Close
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
