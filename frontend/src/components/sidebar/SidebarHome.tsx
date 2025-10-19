@@ -14,9 +14,10 @@ import { cn } from '@/lib/utils'
 interface SidebarHomeProps {
   onTripClick?: (trip: Trip) => void
   onUploadClick?: () => void
+  onMyTripsClick?: () => void
 }
 
-export function SidebarHome({ onTripClick, onUploadClick }: SidebarHomeProps) {
+export function SidebarHome({ onTripClick, onUploadClick, onMyTripsClick }: SidebarHomeProps) {
   const formatDateRange = (start: string, end: string) => {
     const startDate = new Date(start)
     const endDate = new Date(end)
@@ -95,7 +96,12 @@ export function SidebarHome({ onTripClick, onUploadClick }: SidebarHomeProps) {
             <Home className="w-5 h-5 text-primary" />
             <span className="text-xs font-medium text-primary">Home</span>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-col h-auto py-2 gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-col h-auto py-2 gap-1"
+            onClick={onMyTripsClick}
+          >
             <Map className="w-5 h-5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">My Trips</span>
           </Button>

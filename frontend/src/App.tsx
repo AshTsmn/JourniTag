@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { MapView } from '@/components/map'
 import { Sidebar, SidebarView } from '@/components/sidebar/Sidebar'
 import { SidebarHome } from '@/components/sidebar/SidebarHome'
+import { TripListView } from '@/components/sidebar/TripListView'
+import { TripDetailView } from '@/components/sidebar/TripDetailView'
 import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { usePhotos } from '@/hooks/usePhotos'
@@ -13,6 +15,7 @@ function App() {
   const { photos, loading } = usePhotos()
   const [sidebarView, setSidebarView] = useState<SidebarView>('home')
   const [isEditing, setIsEditing] = useState(false)
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [locationPhotos, setLocationPhotos] = useState<Photo[]>([])
 
@@ -33,9 +36,44 @@ function App() {
 
   const handleBackToHome = () => {
     setSidebarView('home')
+    setSelectedTrip(null)
     setSelectedLocation(null)
     setLocationPhotos([])
     setIsEditing(false)
+  }
+
+  const handleBackToTripList = () => {
+    setSidebarView('trip-list')
+    setSelectedTrip(null)
+    setSelectedLocation(null)
+    setIsEditing(false)
+  }
+
+  const handleBackToTripDetail = () => {
+    setSidebarView('trip-detail')
+    setSelectedLocation(null)
+    setIsEditing(false)
+  }
+
+  const handleMyTripsClick = () => {
+    setSidebarView('trip-list')
+  }
+
+  const handleTripClick = (trip: Trip) => {
+    console.log('Trip clicked:', trip)
+    setSelectedTrip(trip)
+    setSidebarView('trip-detail')
+  }
+
+  const handleLocationClick = (location: Location) => {
+    console.log('Location clicked:', location)
+    const locationWithPhotos = getLocationWithPhotos(location.id)
+    if (locationWithPhotos) {
+      setSelectedLocation(locationWithPhotos)
+      setLocationPhotos(locationWithPhotos.photos || [])
+      setSidebarView('location-detail')
+      setIsEditing(false)
+    }
   }
 
   const handleEditClick = () => {
@@ -51,11 +89,6 @@ function App() {
     // Backend: Call locationAPI.updateLocation(location)
     setSelectedLocation(location)
     setIsEditing(false)
-  }
-
-  const handleTripClick = (trip: Trip) => {
-    console.log('Trip clicked:', trip)
-    // TODO: Navigate to trip view
   }
 
   const handleUploadClick = () => {
@@ -75,9 +108,27 @@ function App() {
     <div className="h-screen w-screen flex">
       {/* Sidebar */}
       <Sidebar view={sidebarView}>
-        {sidebarView === 'home' ? (
-          <SidebarHome onTripClick={handleTripClick} onUploadClick={handleUploadClick} />
-        ) : selectedLocation ? (
+        {sidebarView === 'home' && (
+          <SidebarHome
+            onTripClick={handleTripClick}
+            onUploadClick={handleUploadClick}
+            onMyTripsClick={handleMyTripsClick}
+          />
+        )}
+
+        {sidebarView === 'trip-list' && (
+          <TripListView onBack={handleBackToHome} onTripClick={handleTripClick} />
+        )}
+
+        {sidebarView === 'trip-detail' && selectedTrip && (
+          <TripDetailView
+            trip={selectedTrip}
+            onBack={handleBackToTripList}
+            onLocationClick={handleLocationClick}
+          />
+        )}
+
+        {sidebarView === 'location-detail' && selectedLocation && (
           isEditing ? (
             <LocationDetailEdit
               location={selectedLocation}
@@ -89,16 +140,16 @@ function App() {
             <LocationDetailView
               location={selectedLocation}
               photos={locationPhotos}
-              onBack={handleBackToHome}
+              onBack={selectedTrip ? handleBackToTripDetail : handleBackToHome}
               onEdit={handleEditClick}
             />
           )
-        ) : null}
+        )}
       </Sidebar>
 
       {/* Map - offset by sidebar width */}
-      <div className="flex-1" style={{ marginLeft: sidebarView === 'home' ? '360px' : '400px' }}>
-        <MapView photos={photos} onPhotoClick={handlePhotoClick} enableClustering={true} />
+      <div className="flex-1" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
+        <MapView photos={photos} onPhotoClick={handlePhotoClick} enableClustering={false} />
       </div>
     </div>
   )

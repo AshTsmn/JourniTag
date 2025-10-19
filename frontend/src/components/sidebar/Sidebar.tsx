@@ -6,7 +6,7 @@
 import { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-export type SidebarView = 'home' | 'location-detail'
+export type SidebarView = 'home' | 'trip-list' | 'trip-detail' | 'location-detail'
 
 interface SidebarProps {
   view: SidebarView

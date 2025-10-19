@@ -28,7 +28,7 @@ export const mockTrips: Trip[] = [
     end_date: '2024-05-14',
     created_at: '2024-05-01T00:00:00Z',
     rating: 4.7,
-    photo_count: 47,
+    photo_count: 6,
   },
   {
     id: '2',
@@ -40,7 +40,7 @@ export const mockTrips: Trip[] = [
     end_date: '2024-04-08',
     created_at: '2024-04-01T00:00:00Z',
     rating: 2.8,
-    photo_count: 23,
+    photo_count: 0,
   },
 ]
 
