@@ -56,17 +56,17 @@ export function LocationDetailView({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {/* Photo Gallery */}
-        <div className="relative w-lg h-64 bg-muted">
+        <div className="relative w-full h-64 bg-muted overflow-x-auto">
           {photos.length > 0 ? (
-            <div className="grid grid-cols-3 gap-1 h-full p-2">
-              {photos.slice(0, 3).map((photo) => (
+            <div className="flex gap-1 h-full p-2 w-48">
+              {photos.map((photo) => (
                 <img
                   key={photo.id}
                   src={photo.file_url}
                   alt={photo.original_filename}
-                  className="w-full h-full object-cover rounded-md"
+                  className="h-full w-auto object-cover rounded-md"
                 />
               ))}
             </div>
