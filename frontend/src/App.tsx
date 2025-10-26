@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import L from 'leaflet'
 import { MapView } from '@/components/map'
 import { Sidebar, SidebarView } from '@/components/sidebar/Sidebar'
 import { SidebarHome } from '@/components/sidebar/SidebarHome'
@@ -8,8 +9,9 @@ import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { UploadModal } from '@/components/upload'
 import { usePhotos } from '@/hooks/usePhotos'
-import { getLocationWithPhotos } from '@/lib/mockData'
+import { getLocationWithPhotos, mockLocations } from '@/lib/mockData'
 import { locationAPI } from '@/services/api'
+import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
 import type { Photo, Location, Trip } from '@/types'
 import './App.css'
 
@@ -23,6 +25,7 @@ function App() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [locationPhotos, setLocationPhotos] = useState<Photo[]>([])
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [mapFocusBounds, setMapFocusBounds] = useState<L.LatLngBounds | null>(null)
 
   const handlePhotoClick = (photo: Photo) => {
     console.log('Photo clicked:', photo)
@@ -68,6 +71,20 @@ function App() {
     console.log('Trip clicked:', trip)
     setSelectedTrip(trip)
     setSidebarView('trip-detail')
+
+    // Calculate bounds for trip locations and focus map
+    const tripLocations = mockLocations.filter((loc) => loc.trip_id === trip.id)
+    const bounds = calculateTripBounds(tripLocations)
+
+    if (bounds) {
+      setMapFocusBounds(bounds)
+    } else {
+      // Fallback to city coordinates
+      const cityCoords = getCityCoordinates(trip.city, trip.country)
+      if (cityCoords) {
+        setMapFocusBounds(createCityBounds(cityCoords))
+      }
+    }
   }
 
   const handleLocationClick = (location: Location) => {
@@ -235,7 +252,12 @@ function App() {
 
       {/* Map - offset by sidebar width */}
       <div className="flex-1" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
-        <MapView photos={photos} onPhotoClick={handlePhotoClick} enableClustering={false} />
+        <MapView
+          photos={photos}
+          onPhotoClick={handlePhotoClick}
+          focusBounds={mapFocusBounds}
+          enableClustering={false}
+        />
       </div>
 
       {/* Upload Modal */}
