@@ -17,9 +17,6 @@ def get_index():
     return flask.render_template("index.html", **context)
 
 
-# Replace your /api/photos/batch-upload endpoint with this version
-# Add to backend/app/routes.py
-
 @app.route('/api/photos/batch-upload', methods=['POST'])
 def batch_upload_photos():
     """
