@@ -9,6 +9,7 @@ const getCurrentUserId = (): number => {
   return 1
 }
 
+
 export const tripAPI = {
   async getAllTrips(): Promise<Trip[]> {
     const response = await fetch(`${API_BASE_URL}/trips`)

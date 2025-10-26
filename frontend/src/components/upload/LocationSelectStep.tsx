@@ -41,8 +41,6 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
   const [newLocationData, setNewLocationData] = useState({
     name: '',
     address: '',
-    x: 0,
-    y: 0,
   })
 
   // Filter trips and locations based on search
@@ -117,9 +115,8 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
       return
     }
 
-    // Use coordinates from EXIF data if available, otherwise use form data
-    const coordinates = uploadState?.previews.find(p => p.coordinates)?.coordinates ||
-      { x: newLocationData.x, y: newLocationData.y }
+    // Use coordinates from EXIF data if available, otherwise default to 0/0
+    const coordinates = uploadState?.previews.find(p => p.coordinates)?.coordinates || { x: 0, y: 0 }
 
     onLocationSelected({
       tripId: selectedTrip.id,
@@ -265,30 +262,7 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
                 placeholder="Full address"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="location-lat">Latitude</Label>
-                <Input
-                  id="location-lat"
-                  type="number"
-                  step="any"
-                  value={newLocationData.y}
-                  onChange={(e) => setNewLocationData(prev => ({ ...prev, y: parseFloat(e.target.value) || 0 }))}
-                  placeholder="35.6895"
-                />
-              </div>
-              <div>
-                <Label htmlFor="location-lng">Longitude</Label>
-                <Input
-                  id="location-lng"
-                  type="number"
-                  step="any"
-                  value={newLocationData.x}
-                  onChange={(e) => setNewLocationData(prev => ({ ...prev, x: parseFloat(e.target.value) || 0 }))}
-                  placeholder="139.6917"
-                />
-              </div>
-            </div>
+            {/* Coordinates come from EXIF automatically; fields hidden */}
           </div>
         </Card>
       )}

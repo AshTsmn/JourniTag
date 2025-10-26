@@ -3,6 +3,7 @@ import re
 import flask
 import uuid 
 import hashlib
+from datetime import datetime
 from app import app
 from app.db import get_db
 from app.photo_service import photo_service
@@ -179,7 +180,6 @@ def batch_upload_photos():
             'error': f'Error uploading photos: {str(e)}'
         }), 500
 
-
 @app.route('/api/photos/location/<int:location_id>', methods=['GET'])
 def get_photos_by_location(location_id):
     """Get all photos for a location."""
@@ -317,9 +317,216 @@ def extract_exif():
     return flask.jsonify({'success': True, 'photos': results})
 
 
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    """Handle CORS preflight requests."""
+    response = flask.make_response('', 200)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS')
+    return response
+
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS')
     return response
+
+
+from datetime import datetime
+
+# ============================================================================
+# TRIP ENDPOINTS
+# ============================================================================
+
+@app.route('/api/trips', methods=['GET'])
+def get_all_trips():
+    """Get all trips for a user."""
+    user_id = flask.request.args.get('user_id', type=int, default=1)
+    
+    connection = get_db()
+    cursor = connection.execute(
+        "SELECT * FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
+        (user_id,)
+    )
+    trips = cursor.fetchall()
+    
+    return flask.jsonify({'success': True, 'trips': trips})
+
+
+@app.route('/api/trips/<int:trip_id>', methods=['GET'])
+def get_trip_by_id(trip_id):
+    """Get a single trip with its locations and photos."""
+    connection = get_db()
+    
+    cursor = connection.execute("SELECT * FROM Trips WHERE id = ?", (trip_id,))
+    trip = cursor.fetchone()
+    
+    if not trip:
+        return flask.jsonify({'success': False, 'error': 'Trip not found'}), 404
+    
+    cursor = connection.execute("SELECT * FROM Locations WHERE trip_id = ?", (trip_id,))
+    locations = cursor.fetchall()
+    
+    all_photos = []
+    for location in locations:
+        cursor = connection.execute("SELECT * FROM Photos WHERE location_id = ?", (location['id'],))
+        photos = cursor.fetchall()
+        all_photos.extend(photos)
+    
+    return flask.jsonify({
+        'success': True,
+        'trip': trip,
+        'locations': locations,
+        'photos': all_photos
+    })
+
+
+@app.route('/api/trips', methods=['POST'])
+def create_trip():
+    """Create a new trip."""
+    data = flask.request.get_json()
+    
+    user_id = data.get('user_id', 1)
+    title = data.get('title')
+    city = data.get('city')
+    country = data.get('country')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    
+    if not title:
+        return flask.jsonify({'success': False, 'error': 'Title is required'}), 400
+    
+    connection = get_db()
+    created_at = int(datetime.now().timestamp())
+    
+    cursor = connection.execute(
+        """
+        INSERT INTO Trips (user_id, title, city, country, start_date, end_date, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (user_id, title, city, country, start_date, end_date, created_at)
+    )
+    
+    trip_id = cursor.lastrowid
+    connection.commit()
+    
+    cursor = connection.execute("SELECT * FROM Trips WHERE id = ?", (trip_id,))
+    trip = cursor.fetchone()
+    
+    print(f"✅ Created trip: {title} (ID: {trip_id})")
+    
+    return flask.jsonify({'success': True, 'trip': trip})
+
+
+# ============================================================================
+# LOCATION ENDPOINTS
+# ============================================================================
+
+@app.route('/api/locations/<int:location_id>', methods=['GET'])
+def get_location_by_id(location_id):
+    """Get a single location with its photos."""
+    connection = get_db()
+    
+    cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
+    location = cursor.fetchone()
+    
+    if not location:
+        return flask.jsonify({'success': False, 'error': 'Location not found'}), 404
+    
+    cursor = connection.execute("SELECT * FROM Photos WHERE location_id = ?", (location_id,))
+    photos = cursor.fetchall()
+    
+    return flask.jsonify({
+        'success': True,
+        'location': location,
+        'photos': photos
+    })
+
+
+@app.route('/api/locations', methods=['POST'])
+def create_location():
+    """Create a new location."""
+    data = flask.request.get_json()
+    
+    trip_id = data.get('trip_id')
+    name = data.get('name')
+    address = data.get('address', '')
+    x = data.get('x', 0.0)  # longitude
+    y = data.get('y', 0.0)  # latitude
+    rating = data.get('rating', 0)
+    notes = data.get('notes', '')
+    tags = data.get('tags', '')
+    time_needed = data.get('time_needed', 0)
+    best_time_to_visit = data.get('best_time_to_visit', '')
+    
+    if not trip_id or not name:
+        return flask.jsonify({'success': False, 'error': 'trip_id and name are required'}), 400
+    
+    connection = get_db()
+    created_at = int(datetime.now().timestamp())
+    
+    cursor = connection.execute(
+        """
+        INSERT INTO Locations 
+        (trip_id, x, y, name, address, rating, notes, time_needed, best_time_to_visit, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (trip_id, x, y, name, address, rating, notes, time_needed, best_time_to_visit, created_at)
+    )
+    
+    # TO IMPLEMENT: ADDING TAGS 
+    
+    location_id = cursor.lastrowid
+    connection.commit()
+    
+    cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
+    location = cursor.fetchone()
+    
+    print(f"✅ Created location: {name} (ID: {location_id}) for trip {trip_id}")
+    
+    return flask.jsonify({'success': True, 'location': location})
+
+
+@app.route('/api/locations/<int:location_id>', methods=['PUT'])
+def update_location(location_id):
+    """Update a location."""
+    data = flask.request.get_json()
+    
+    connection = get_db()
+    
+    cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
+    location = cursor.fetchone()
+    
+    if not location:
+        return flask.jsonify({'success': False, 'error': 'Location not found'}), 404
+    
+    # Update fields
+    name = data.get('name', location['name'])
+    address = data.get('address', location['address'])
+    x = data.get('x', location['x'])
+    y = data.get('y', location['y'])
+    rating = data.get('rating', location['rating'])
+    notes = data.get('notes', location['notes'])
+    time_needed = data.get('time_needed', location['time_needed'])
+    best_time_to_visit = data.get('best_time_to_visit', location['best_time_to_visit'])
+    
+    connection.execute(
+        """
+        UPDATE Locations 
+        SET name = ?, address = ?, x = ?, y = ?, rating = ?, notes = ?,
+            time_needed = ?, best_time_to_visit = ?
+        WHERE id = ?
+        """,
+        (name, address, x, y, rating, notes, time_needed, best_time_to_visit, location_id)
+    )
+    connection.commit()
+    
+    cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
+    updated_location = cursor.fetchone()
+    
+    print(f"✅ Updated location: {name} (ID: {location_id})")
+    
+    return flask.jsonify({'success': True, 'location': updated_location})

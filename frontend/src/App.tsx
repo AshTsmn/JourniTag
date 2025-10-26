@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import L from 'leaflet'
 import { MapView } from '@/components/map'
 import { Sidebar, SidebarView } from '@/components/sidebar/Sidebar'
 import { SidebarHome } from '@/components/sidebar/SidebarHome'
@@ -8,8 +9,9 @@ import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { UploadModal } from '@/components/upload'
 import { usePhotos } from '@/hooks/usePhotos'
-import { getLocationWithPhotos } from '@/lib/mockData'
+import { getLocationWithPhotos, mockLocations } from '@/lib/mockData'
 import { locationAPI } from '@/services/api'
+import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
 import type { Photo, Location, Trip } from '@/types'
 import './App.css'
 
@@ -23,6 +25,7 @@ function App() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [locationPhotos, setLocationPhotos] = useState<Photo[]>([])
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [mapFocusBounds, setMapFocusBounds] = useState<L.LatLngBounds | null>(null)
 
   const handlePhotoClick = (photo: Photo) => {
     console.log('Photo clicked:', photo)
@@ -68,18 +71,53 @@ function App() {
     console.log('Trip clicked:', trip)
     setSelectedTrip(trip)
     setSidebarView('trip-detail')
+
+    // Calculate bounds for trip locations and focus map (merge runtime + mock)
+    const runtimeTripLocs = locations.filter((loc) => loc.trip_id === trip.id)
+    const mockTripLocs = mockLocations.filter((loc) => loc.trip_id === trip.id)
+    const byId: Record<string, Location> = {}
+    for (const l of mockTripLocs) byId[l.id] = l
+    for (const l of runtimeTripLocs) byId[l.id] = { ...(byId[l.id] || {} as Location), ...l }
+    const tripLocations = Object.values(byId)
+    const bounds = calculateTripBounds(tripLocations)
+
+    if (bounds) {
+      setMapFocusBounds(bounds)
+    } else {
+      // Fallback to city coordinates
+      const cityCoords = getCityCoordinates(trip.city, trip.country)
+      if (cityCoords) {
+        setMapFocusBounds(createCityBounds(cityCoords))
+      }
+    }
   }
 
-  const handleLocationClick = (location: Location) => {
+  const handleLocationClick = async (location: Location) => {
     console.log('Location clicked:', location)
-    // Prefer runtime state location with photos
     const runtime = locations.find(l => l.id === location.id) || location
-    const withMock = runtime.photos && runtime.photos.length > 0
-      ? runtime
-      : getLocationWithPhotos(location.id) || runtime
 
-    setSelectedLocation(withMock)
-    setLocationPhotos(withMock.photos || [])
+    // If we already have photos locally, use them; otherwise try API store, then mock
+    let enriched = runtime
+    if (!runtime.photos || runtime.photos.length === 0) {
+      try {
+        const fetched = await locationAPI.getLocationById(location.id)
+        enriched = { ...fetched.location, photos: fetched.photos }
+
+        // merge back into locations state so Trip views show counts and persist others
+        setLocations(prev => {
+          const byId: Record<string, Location> = {}
+          for (const l of prev) byId[l.id] = l
+          byId[enriched.id] = { ...(byId[enriched.id] || {} as Location), ...enriched }
+          return Object.values(byId)
+        })
+      } catch (e) {
+        const fallback = getLocationWithPhotos(location.id)
+        if (fallback) enriched = fallback
+      }
+    }
+
+    setSelectedLocation(enriched)
+    setLocationPhotos(enriched.photos || [])
     setSidebarView('location-detail')
     setIsEditing(false)
   }
@@ -124,60 +162,39 @@ function App() {
     console.log('Modal state set to:', true)
   }
 
-  const handleUploadComplete = (trip?: Trip, newLocations?: Location[]) => {
-    console.log('Upload completed:', { trip, locations: newLocations })
+  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: UploadPhotoRequest[]) => {
+  console.log('Upload completed:', { trip, locations: newLocations, pendingPhotos })
 
+  if (trip) {
+    setTrips(prevTrips => {
+      // Only add if this trip doesn't already exist
+      const exists = prevTrips.some(t => t.id === trip.id)
+      if (exists) {
+        console.log('Trip already exists, not adding duplicate')
+        return prevTrips
+      }
+      console.log('Adding new trip:', trip)
+      return [...prevTrips, trip]
+    })
+  }
+
+  if (newLocations && newLocations.length > 0) {
+    setLocations(prev => [...prev, ...newLocations])
+
+    // Navigate to edit the first location
     if (trip) {
-      setTrips(prevTrips => [...prevTrips, trip])
-      console.log('Added new trip to trips list:', trip)
-    }
-
-    if (newLocations && newLocations.length > 0) {
-      console.log('Adding locations to state and map:', newLocations)
-      // store locations for TripDetail view
-      setLocations(prev => [...prev, ...newLocations])
-
-      // add their photos to the map
-      setPhotos(prevPhotos => {
-        const newPhotos = newLocations.flatMap(location =>
-          location.photos?.map(photo => ({
-            ...photo,
-            location: location
-          })) || []
-        )
-        console.log('New photos to add:', newPhotos)
-        return [...prevPhotos, ...newPhotos]
-      })
-
-      // compute trip stats
-      if (trip) {
-        const rated = newLocations.filter(l => (l.rating ?? 0) > 0)
-        const avg = rated.length > 0 ? rated.reduce((s, l) => s + (l.rating ?? 0), 0) / rated.length : 0
-        const photosCount = newLocations.reduce((s, l) => s + (l.photos?.length || 0), 0)
-        setTrips(prev => prev.map(t => t.id === trip.id ? { ...t, rating: avg || undefined, photo_count: photosCount } : t))
-      }
-
-      // Navigate author to edit the first created location
-      if (trip) {
-        const first = newLocations[0]
-        if (first) {
-          setSelectedTrip(trip)
-          setSelectedLocation(first)
-          setLocationPhotos(first.photos || [])
-          setIsEditing(true)
-          setSidebarView('location-detail')
-        }
+      const first = newLocations[0]
+      if (first) {
+        setSelectedTrip(trip)
+        setSelectedLocation({ ...first, pendingPhotoUploads: pendingPhotos }) // Add pending photos here
+        setLocationPhotos(first.photos || [])
+        setIsEditing(true)
+        setSidebarView('location-detail')
       }
     }
+  }
 
-    // Force a refresh to ensure the UI updates
-    setTimeout(() => {
-      console.log('Forcing UI refresh...')
-      setTrips(prevTrips => [...prevTrips])
-      setPhotos(prevPhotos => [...prevPhotos])
-    }, 100)
-
-    setIsUploadModalOpen(false)
+  setIsUploadModalOpen(false)
   }
 
   if (loading) {
@@ -235,7 +252,12 @@ function App() {
 
       {/* Map - offset by sidebar width */}
       <div className="flex-1" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
-        <MapView photos={photos} onPhotoClick={handlePhotoClick} enableClustering={false} />
+        <MapView
+          photos={photos}
+          onPhotoClick={handlePhotoClick}
+          focusBounds={mapFocusBounds}
+          enableClustering={false}
+        />
       </div>
 
       {/* Upload Modal */}

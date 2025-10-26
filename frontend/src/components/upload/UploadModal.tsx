@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { X, Upload, MapPin, FileText, Check } from 'lucide-react'
 import { UploadState, Trip, Location, CreateTripRequest, CreateLocationRequest, UploadPhotoRequest } from '@/types'
 import { tripAPI, locationAPI, photoAPI } from '@/services/api'
@@ -99,106 +98,102 @@ export function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalPr
     }))
   }, [])
 
+  
   const handleUpload = useCallback(async () => {
     try {
       console.log('handleUpload called with:', { newTrip, newLocation, existingTripId, existingLocationId })
       let finalTripId = existingTripId
       let finalLocationId = existingLocationId
 
-      // Create new trip if needed
-      if (newTrip && !existingTripId) {
+      // Create new trip ONLY if we're creating a new trip (not selecting existing)
+      if (!existingTripId && newTrip && newTrip.title) {  // ✅ Check that newTrip has actual data
         console.log('Creating new trip:', newTrip)
         const createdTrip = await tripAPI.createTrip(newTrip)
-        finalTripId = createdTrip.id
-
-        // If we created a new trip, also create a default location for it
-        if (!existingLocationId) {
-          // Use the GPS coordinates from the first photo
-          const firstPhotoCoords = uploadState.previews[0]?.coordinates
-          const defaultLocation = {
-            name: newTrip.city || 'New Location',
-            address: `${newTrip.city}, ${newTrip.country}`,
-            x: firstPhotoCoords?.x || 0, // longitude
-            y: firstPhotoCoords?.y || 0, // latitude
-          }
-          const locationToCreate = {
-            ...defaultLocation,
-            trip_id: finalTripId,
-            rating: 0,
-            tags: [],
-            cost_level: 'Free' as const,
-            time_needed: 0,
-            notes: '',
-          }
-          const createdLocation = await locationAPI.createLocation(locationToCreate)
-          finalLocationId = createdLocation.id
-        }
+        finalTripId = createdTrip.id.toString()
+        console.log('✅ Trip created with ID:', finalTripId)
+      } else if (existingTripId) {
+        console.log('Using existing trip ID:', existingTripId)
+        finalTripId = existingTripId
+      } else {
+        throw new Error('No trip selected or created')
       }
 
-      // Create new location if needed (for existing trips)
-      if (newLocation && !existingLocationId && existingTripId) {
+      // Create new location if needed
+      if (!existingLocationId && newLocation) {
+        console.log('Creating new location:', newLocation)
+        const firstPhotoCoords = uploadState.previews[0]?.coordinates
+        
         const locationToCreate = {
           ...newLocation,
           trip_id: finalTripId!,
+          x: firstPhotoCoords?.x || newLocation.x || 0,
+          y: firstPhotoCoords?.y || newLocation.y || 0,
         }
+        
+        console.log('Location data to create:', locationToCreate)
         const createdLocation = await locationAPI.createLocation(locationToCreate)
-        finalLocationId = createdLocation.id
+        finalLocationId = createdLocation.id.toString()
+        console.log('✅ Location created with ID:', finalLocationId)
       }
 
-      // Prepare photo upload data
+      if (!finalLocationId) {
+        throw new Error('No location ID available for photo upload')
+      }
+
+      // Prepare and UPLOAD photos immediately
       const uploadRequests: UploadPhotoRequest[] = uploadState.previews.map(preview => ({
         file: preview.file,
         location_id: finalLocationId!,
         x: preview.coordinates?.x,
         y: preview.coordinates?.y,
-        is_cover_photo: false, // We'll handle cover photo selection separately
+        is_cover_photo: false,
       }))
 
-      console.log('Upload requests prepared:', uploadRequests)
-      console.log('Final trip ID:', finalTripId)
-      console.log('Final location ID:', finalLocationId)
-
-      // Move to uploading step
-      setUploadState(prev => ({
-        ...prev,
-        currentStep: 'uploading',
-      }))
-
-      // Upload photos
+      console.log('📤 Uploading photos...')
       const uploadedPhotos = await photoAPI.uploadPhotos(uploadRequests)
+      console.log('✅ Photos uploaded:', uploadedPhotos)
 
       // Get the created trip and location data
-      console.log('Getting trip data for ID:', finalTripId)
       const tripData = finalTripId ? await tripAPI.getTripById(finalTripId) : null
-      console.log('Trip data received:', tripData)
-
-      console.log('Getting location data for ID:', finalLocationId)
       const locationData = finalLocationId ? await locationAPI.getLocationById(finalLocationId) : null
-      console.log('Location data received:', locationData)
 
-      // Store the results for the UploadingStep to use
+      // Store the results
       setUploadState(prev => ({
         ...prev,
         uploadResults: {
           trip: tripData?.trip,
-          // include photos on the location so TripDetail can render them immediately
           locations: locationData ? [{ ...locationData.location, photos: locationData.photos }] : undefined,
         }
       }))
     } catch (error) {
-      console.error('Upload failed:', error)
-      // TODO: Show error message to user
+      console.error('❌ Upload failed:', error)
+      setUploadState(prev => ({
+        ...prev,
+        uploadError: error instanceof Error ? error.message : 'Upload failed'
+      }))
     }
-  }, [uploadState, newTrip, newLocation, existingTripId, existingLocationId, onUploadComplete, onClose])
+  }, [uploadState, newTrip, newLocation, existingTripId, existingLocationId])
 
-  // Trigger upload when step changes to 'uploading'
+  const uploadTriggeredRef = useRef(false)
+  // Reset the ref when modal closes
   useEffect(() => {
-    if (uploadState.currentStep === 'uploading') {
-      console.log('Step changed to uploading, triggering handleUpload with current state:', { newTrip, newLocation, existingTripId, existingLocationId })
-      console.log('Upload state previews:', uploadState.previews)
+    if (uploadState.currentStep === 'uploading' && !uploadTriggeredRef.current) {
+      console.log('Step changed to uploading, triggering handleUpload...')
+      uploadTriggeredRef.current = true
       handleUpload()
     }
-  }, [uploadState.currentStep])
+  }, [uploadState.currentStep]) 
+
+  useEffect(() => {
+    if (isOpen) {
+      uploadTriggeredRef.current = false
+      setUploadState({ files: [], previews: [], currentStep: 'select' })
+      setNewTrip(null)
+      setNewLocation(null)
+      setExistingTripId(null)
+      setExistingLocationId(null)
+    }
+  }, [isOpen])
 
   const handleClose = useCallback(() => {
     setUploadState({
@@ -212,6 +207,17 @@ export function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalPr
     setExistingLocationId(null)
     onClose()
   }, [onClose])
+
+  // Ensure a fresh start every time the modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setUploadState({ files: [], previews: [], currentStep: 'select' })
+      setNewTrip(null)
+      setNewLocation(null)
+      setExistingTripId(null)
+      setExistingLocationId(null)
+    }
+  }, [isOpen])
 
   const renderCurrentStep = () => {
     switch (uploadState.currentStep) {
@@ -318,3 +324,4 @@ export function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalPr
     </div>
   )
 }
+

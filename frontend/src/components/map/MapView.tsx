@@ -14,6 +14,7 @@ import L from 'leaflet'
 interface MapViewProps {
   photos: Photo[]
   onPhotoClick?: (photo: Photo) => void
+  focusBounds?: L.LatLngBounds | null
   className?: string
   enableClustering?: boolean
 }
@@ -29,7 +30,25 @@ function MapController({ center, zoom }: { center: [number, number]; zoom: numbe
   return null
 }
 
-export function MapView({ photos, onPhotoClick, className, enableClustering = true }: MapViewProps) {
+// Helper component to handle map bounds focusing
+function BoundsController({ bounds }: { bounds: L.LatLngBounds | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds, {
+        padding: [50, 50],
+        maxZoom: 15,
+        animate: true,
+        duration: 1.0,
+      })
+    }
+  }, [bounds, map])
+
+  return null
+}
+
+export function MapView({ photos, onPhotoClick, focusBounds, className, enableClustering = true }: MapViewProps) {
   const { mapState, flyTo } = useMapState({
     center: [35.6762, 139.6503], // Tokyo default
     zoom: 13,
@@ -60,6 +79,7 @@ export function MapView({ photos, onPhotoClick, className, enableClustering = tr
         />
 
         <MapController center={mapState.center} zoom={mapState.zoom} />
+        <BoundsController bounds={focusBounds || null} />
 
         {/* Render photo markers with optional clustering */}
         {enableClustering ? (

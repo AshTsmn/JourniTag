@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import type { Location, Photo } from '@/types'
-import { cn } from '@/lib/utils'
 
 interface LocationDetailViewProps {
   location: Location
@@ -144,11 +143,11 @@ export function LocationDetailView({
             </div>
 
             {/* Vibe Tags */}
-            {location.tags.length > 0 && (
+            {(location.tags && location.tags.length > 0) && (
               <div className="space-y-2">
                 <Label>Vibe</Label>
                 <div className="flex flex-wrap gap-2">
-                  {location.tags.map((tag) => (
+                  {(location.tags || []).map((tag) => (
                     <span
                       key={tag}
                       className="px-3 py-1 bg-muted rounded-full text-sm"
@@ -216,12 +215,12 @@ export function LocationDetailView({
               </div>
             )}
 
-            {/* Hours to spend */}
+            {/* Time to Spend */}
             {location.time_needed && (
               <div className="space-y-2">
-                <Label>Hours to spend</Label>
+                <Label>Time to Spend</Label>
                 <p className="text-sm text-muted-foreground">
-                  {location.time_needed / 60} hours
+                  {location.time_needed} minutes
                 </p>
               </div>
             )}

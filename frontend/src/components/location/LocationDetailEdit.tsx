@@ -122,7 +122,11 @@ export function LocationDetailEdit({
             <div className="space-y-2">
               <Label>Vibe</Label>
               <TagSelector
-                availableTags={Array.from(TAG_OPTIONS)}
+                availableTags={[
+                  ...Array.from(TAG_OPTIONS),
+                  // Ensure custom tags (added by user) also appear and can be toggled
+                  ...((editedLocation.tags || []).filter((t) => !Array.from(TAG_OPTIONS).includes(t)))
+                ]}
                 selectedTags={editedLocation.tags}
                 onTagToggle={(tag) => {
                   const current = editedLocation.tags || []
@@ -184,21 +188,21 @@ export function LocationDetailEdit({
               />
             </div>
 
-            {/* Hours to spend */}
+            {/* Time to Spend */}
             <div className="space-y-2">
-              <Label htmlFor="time-needed">Hours to spend</Label>
+              <Label htmlFor="time-needed">Time to Spend</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="time-needed"
                   type="number"
-                  value={editedLocation.time_needed ? editedLocation.time_needed / 60 : ''}
+                  value={editedLocation.time_needed ?? ''}
                   onChange={(e) =>
-                    updateLocation({ time_needed: parseFloat(e.target.value) * 60 })
+                    updateLocation({ time_needed: parseInt(e.target.value) || 0 })
                   }
-                  placeholder="2"
+                  placeholder="120"
                   className="w-24"
                 />
-                <span className="text-sm text-muted-foreground">hours</span>
+                <span className="text-sm text-muted-foreground">minutes</span>
               </div>
             </div>
           </div>

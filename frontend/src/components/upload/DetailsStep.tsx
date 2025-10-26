@@ -231,7 +231,7 @@ export function DetailsStep({
                 </Select>
               </div>
               <div>
-                <Label htmlFor="time-needed">Time Needed (minutes)</Label>
+                <Label htmlFor="time-needed">Time to Spend (minutes)</Label>
                 <Input
                   id="time-needed"
                   type="number"
@@ -256,7 +256,7 @@ export function DetailsStep({
               <Label>Tags</Label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {selectedTags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                  <Badge key={tag} variant="default" className="flex items-center gap-1">
                     {tag}
                     <button
                       type="button"
@@ -271,8 +271,9 @@ export function DetailsStep({
               <div className="flex gap-2">
                 <Select onValueChange={(value) => {
                   if (!selectedTags.includes(value)) {
-                    setSelectedTags(prev => [...prev, value])
-                    setLocationDetails(prev => ({ ...prev, tags: [...prev.tags, value] }))
+                    const updated = [...selectedTags, value]
+                    setSelectedTags(updated)
+                    setLocationDetails(prev => ({ ...prev, tags: updated }))
                   }
                 }}>
                   <SelectTrigger className="flex-1">

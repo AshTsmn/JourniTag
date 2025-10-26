@@ -40,11 +40,12 @@ export const mockTrips: Trip[] = [
     end_date: '2024-04-08',
     created_at: '2024-04-01T00:00:00Z',
     rating: 2.8,
-    photo_count: 0,
+    photo_count: 4,
   },
 ]
 
 export const mockLocations: Location[] = [
+  // Tokyo Locations
   {
     id: '1',
     x: 139.7683, // longitude (Sensō-ji Temple)
@@ -90,9 +91,56 @@ export const mockLocations: Location[] = [
     best_time_to_visit: '8:00 am - 10:00 am',
     created_at: '2024-05-05T08:30:00Z',
   },
+  // Detroit Locations
+  {
+    id: '4',
+    x: -83.0458, // longitude (Detroit Institute of Arts)
+    y: 42.3594, // latitude
+    trip_id: '2',
+    name: 'Detroit Institute of Arts',
+    address: '5200 Woodward Ave, Detroit, MI 48202, USA',
+    rating: 4,
+    notes: 'For the Museum: "Diego Rivera murals are a must-see"\nFor the Coffee Shop: "Cafe DIA has decent pastries"',
+    tags: ['Cultural', 'Tourist spot'],
+    cost_level: '$$',
+    time_needed: 120,
+    best_time_to_visit: '10:00 am - 12:00 pm',
+    created_at: '2024-04-05T10:00:00Z',
+  },
+  {
+    id: '5',
+    x: -83.0401,
+    y: 42.3314,
+    trip_id: '2',
+    name: 'Belle Isle Park',
+    address: 'Detroit, MI 48207, USA',
+    rating: 3,
+    notes: 'Nice island park. Good for walking but nothing special.',
+    tags: ['Nature', 'Hidden gem'],
+    cost_level: 'Free',
+    time_needed: 90,
+    best_time_to_visit: '2:00 pm - 5:00 pm',
+    created_at: '2024-04-06T14:00:00Z',
+  },
+  {
+    id: '6',
+    x: -83.0497,
+    y: 42.3486,
+    trip_id: '2',
+    name: 'Lafayette Coney Island',
+    address: '118 W Lafayette Blvd, Detroit, MI 48226, USA',
+    rating: 2,
+    notes: 'For the Hot Dogs: "Overrated. American Coney Island next door is better"',
+    tags: ['Local eats'],
+    cost_level: '$',
+    time_needed: 30,
+    best_time_to_visit: '12:00 pm - 1:00 pm',
+    created_at: '2024-04-07T12:30:00Z',
+  },
 ]
 
 export const mockPhotos: Photo[] = [
+  // Tokyo Photos
   {
     id: '1',
     location_id: '1',
@@ -158,6 +206,51 @@ export const mockPhotos: Photo[] = [
     original_filename: 'IMG_2050.jpg',
     taken_at: '2024-05-05T10:00:00Z',
     is_cover_photo: false,
+  },
+  // Detroit Photos (reusing test-photos assets)
+  {
+    id: '7',
+    location_id: '4',
+    user_id: '1',
+    x: -83.0458,
+    y: 42.3594,
+    file_url: '/src/assets/test-photos/pic-1.png',
+    original_filename: 'IMG_3001.jpg',
+    taken_at: '2024-04-05T10:30:00Z',
+    is_cover_photo: true,
+  },
+  {
+    id: '8',
+    location_id: '4',
+    user_id: '1',
+    x: -83.0460,
+    y: 42.3595,
+    file_url: '/src/assets/test-photos/pic-2.png',
+    original_filename: 'IMG_3002.jpg',
+    taken_at: '2024-04-05T11:00:00Z',
+    is_cover_photo: false,
+  },
+  {
+    id: '9',
+    location_id: '5',
+    user_id: '1',
+    x: -83.0401,
+    y: 42.3314,
+    file_url: '/src/assets/test-photos/pic-3.png',
+    original_filename: 'IMG_3003.jpg',
+    taken_at: '2024-04-06T14:30:00Z',
+    is_cover_photo: true,
+  },
+  {
+    id: '10',
+    location_id: '6',
+    user_id: '1',
+    x: -83.0497,
+    y: 42.3486,
+    file_url: '/src/assets/test-photos/pic-4.png',
+    original_filename: 'IMG_3004.jpg',
+    taken_at: '2024-04-07T12:45:00Z',
+    is_cover_photo: true,
   },
 ]
 
