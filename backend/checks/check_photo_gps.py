@@ -19,7 +19,7 @@ def check_photo(image_path):
         try:
             from pillow_heif import register_heif_opener
             register_heif_opener()
-            print("✓ HEIC support loaded")
+            print("✓ HEIC suppo loaded")
         except ImportError:
             print("⚠ HEIC support not available (install pillow-heif)")
         

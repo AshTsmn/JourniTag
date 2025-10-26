@@ -21,4 +21,4 @@ app.wsgi_app = SharedDataMiddleware(app.wsgi_app, {
 from app import db
 db.init_app(app)
 
-from app import route
+from app import routes
