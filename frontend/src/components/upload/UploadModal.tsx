@@ -106,11 +106,34 @@ export function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalPr
       let finalLocationId = existingLocationId
 
       // Create new trip ONLY if we're creating a new trip (not selecting existing)
-      if (!existingTripId && newTrip && newTrip.title) {  // ✅ Check that newTrip has actual data
+      if (!existingTripId && newTrip && newTrip.title) {
         console.log('Creating new trip:', newTrip)
         const createdTrip = await tripAPI.createTrip(newTrip)
         finalTripId = createdTrip.id.toString()
         console.log('✅ Trip created with ID:', finalTripId)
+        
+        // If creating a new trip WITHOUT a specific location, create a default one
+        if (!newLocation && !existingLocationId) {
+          console.log('Creating default location for new trip...')
+          const firstPhotoCoords = uploadState.previews[0]?.coordinates
+          
+          const defaultLocation = {
+            name: newTrip.city || 'New Location',
+            address: `${newTrip.city}, ${newTrip.country}`,
+            trip_id: finalTripId,
+            x: firstPhotoCoords?.x || 0,
+            y: firstPhotoCoords?.y || 0,
+            rating: 0,
+            notes: '',
+            tags: '',
+            time_needed: 0,
+            best_time_to_visit: '',
+          }
+          
+          const createdLocation = await locationAPI.createLocation(defaultLocation)
+          finalLocationId = createdLocation.id.toString()
+          console.log('✅ Default location created with ID:', finalLocationId)
+        }
       } else if (existingTripId) {
         console.log('Using existing trip ID:', existingTripId)
         finalTripId = existingTripId
@@ -118,7 +141,7 @@ export function UploadModal({ isOpen, onClose, onUploadComplete }: UploadModalPr
         throw new Error('No trip selected or created')
       }
 
-      // Create new location if needed
+      // Create new location if user specified one
       if (!existingLocationId && newLocation) {
         console.log('Creating new location:', newLocation)
         const firstPhotoCoords = uploadState.previews[0]?.coordinates
