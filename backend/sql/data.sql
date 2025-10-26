@@ -2,8 +2,8 @@ INSERT INTO Users (email, name) VALUES ('test@example.com', 'Test User');
 
 INSERT INTO Trips (user_id, title, city, country, start_date, end_date) 
 VALUES
-(1, '🌸 tokyo ~ 🌸', 'Tokyo', 'Japan', 2024-05-02, 2024-05-13),
-(1, 'detroit 🏙️', 'Detroit', 'United States', 2024-04-04, 2024-04-07);
+(1, '🌸 tokyo ~ 🌸', 'Tokyo', 'Japan', '2024-05-02', '2024-05-13'),
+(1, 'detroit 🏙️', 'Detroit', 'United States', '2024-04-04', '2024-04-07');
 
 INSERT INTO LOCATIONS (trip_id, x, y, name, address, rating, cost_level, notes, time_needed, best_time_to_visit)
 VALUES
