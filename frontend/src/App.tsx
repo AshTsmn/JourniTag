@@ -78,11 +78,34 @@ function App() {
     setIsEditing(false)
   }
 
-  const handleBackToTripDetail = () => {
-    setSidebarView('trip-detail')
-    setSelectedLocation(null)
-    setIsEditing(false)
-  }
+  const handleBackToTripDetail = async () => {
+    setSidebarView('trip-detail')
+    setSelectedLocation(null)
+    setIsEditing(false)
+
+    // Re-fetch trip locations to ensure we have the latest data
+    if (selectedTrip) {
+      try {
+        const tripData = await tripAPI.getTripById(selectedTrip.id.toString())
+
+        // Update locations state with trip locations
+        setLocations(prev => {
+          const byId: Record<string, Location> = {}
+          for (const l of prev) byId[l.id] = l
+          for (const l of tripData.locations) byId[l.id] = l
+          return Object.values(byId)
+        })
+
+        // Recalculate bounds for trip locations
+        const bounds = calculateTripBounds(tripData.locations)
+        if (bounds) {
+          setMapFocusBounds(bounds)
+        }
+      } catch (error) {
+        console.error('Error fetching trip details:', error)
+      }
+    }
+  }
 
   const handleMyTripsClick = () => {
     setSidebarView('trip-list')
