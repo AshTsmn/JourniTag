@@ -627,15 +627,15 @@ def create_location():
 def update_location(location_id):
     """Update a location."""
     data = flask.request.get_json()
-    
+
     connection = get_db()
-    
+
     cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
     location = cursor.fetchone()
-    
+
     if not location:
         return flask.jsonify({'success': False, 'error': 'Location not found'}), 404
-    
+
     # Update fields
     name = data.get('name', location['name'])
     address = data.get('address', location['address'])
@@ -643,23 +643,63 @@ def update_location(location_id):
     y = data.get('y', location['y'])
     rating = data.get('rating', location['rating'])
     notes = data.get('notes', location['notes'])
+    cost_level = data.get('cost_level', location['cost_level'])
     time_needed = data.get('time_needed', location['time_needed'])
     best_time_to_visit = data.get('best_time_to_visit', location['best_time_to_visit'])
-    
+    tags = data.get('tags', [])
+
+    # Update location fields
     connection.execute(
         """
-        UPDATE Locations 
+        UPDATE Locations
         SET name = ?, address = ?, x = ?, y = ?, rating = ?, notes = ?,
-            time_needed = ?, best_time_to_visit = ?
+            cost_level = ?, time_needed = ?, best_time_to_visit = ?
         WHERE id = ?
         """,
-        (name, address, x, y, rating, notes, time_needed, best_time_to_visit, location_id)
+        (name, address, x, y, rating, notes, cost_level, time_needed, best_time_to_visit, location_id)
     )
+
+    # Update tags
+    if tags is not None:
+        # Remove old tags
+        connection.execute("DELETE FROM LocationTags WHERE location_id = ?", (location_id,))
+
+        # Add new tags
+        for tag_name in tags:
+            # Get or create tag
+            cursor = connection.execute("SELECT id FROM Tags WHERE name = ?", (tag_name,))
+            tag = cursor.fetchone()
+
+            if tag:
+                tag_id = tag['id']
+            else:
+                # Create new tag
+                cursor = connection.execute("INSERT INTO Tags (name) VALUES (?)", (tag_name,))
+                tag_id = cursor.lastrowid
+
+            # Link tag to location
+            connection.execute(
+                "INSERT INTO LocationTags (location_id, tag_id) VALUES (?, ?)",
+                (location_id, tag_id)
+            )
+
     connection.commit()
-    
+
+    # Fetch updated location with tags
     cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
-    updated_location = cursor.fetchone()
-    
+    updated_location = dict(cursor.fetchone())
+
+    # Get tags
+    cursor = connection.execute(
+        """
+        SELECT t.name FROM Tags t
+        JOIN LocationTags lt ON t.id = lt.tag_id
+        WHERE lt.location_id = ?
+        """,
+        (location_id,)
+    )
+    updated_location['tags'] = [row['name'] for row in cursor.fetchall()]
+
     print(f"✅ Updated location: {name} (ID: {location_id})")
-    
+
     return flask.jsonify({'success': True, 'location': updated_location})
