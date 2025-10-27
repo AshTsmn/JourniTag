@@ -6,7 +6,6 @@
 import { useState, useEffect } from 'react'
 import { photoAPI } from '@/services/api'
 import type { Photo } from '@/types'
-import { getAllPhotosWithLocations } from '@/lib/mockData'
 
 export function usePhotos() {
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -22,13 +21,13 @@ export function usePhotos() {
       setLoading(true)
       setError(null)
 
-      // Using mock data for now
-      // const data = await photoAPI.getPhotos()
-      const data = getAllPhotosWithLocations()
+      // Fetch photos from backend API
+      const data = await photoAPI.getPhotos()
 
       setPhotos(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load photos')
+      console.error('Error loading photos:', err)
     } finally {
       setLoading(false)
     }

@@ -95,6 +95,13 @@ export const locationAPI = {
 }
 
 export const photoAPI = {
+  async getPhotos(): Promise<Photo[]> {
+    const response = await fetch(`${API_BASE_URL}/photos?user_id=${getCurrentUserId()}`)
+    if (!response.ok) throw new Error('Failed to fetch photos')
+    const data = await response.json()
+    return data.photos || []
+  },
+
   async uploadPhotos(requests: UploadPhotoRequest[]): Promise<Photo[]> {
     if (requests.length === 0) {
       return []
@@ -102,12 +109,12 @@ export const photoAPI = {
 
     // All photos should go to the same location
     const locationId = requests[0].location_id
-    
+
     // Create FormData for batch upload
     const formData = new FormData()
     formData.append('location_id', locationId.toString())
     formData.append('user_id', getCurrentUserId().toString())
-    
+
     // Add all files to the FormData
     requests.forEach((request) => {
       formData.append('files', request.file)
@@ -133,7 +140,7 @@ export const photoAPI = {
 
     const data = await response.json()
     console.log('Upload response:', data)
-    
+
     if (!data.success) {
       throw new Error(data.error || 'Upload failed')
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import L from 'leaflet'
 import { MapView } from '@/components/map'
 import { Sidebar, SidebarView } from '@/components/sidebar/Sidebar'
@@ -9,16 +9,16 @@ import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { UploadModal } from '@/components/upload'
 import { usePhotos } from '@/hooks/usePhotos'
-import { getLocationWithPhotos, mockLocations } from '@/lib/mockData'
-import { locationAPI } from '@/services/api'
+import { locationAPI, tripAPI } from '@/services/api'
 import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
 import type { Photo, Location, Trip } from '@/types'
 import './App.css'
 
 function App() {
-  const { photos, loading, setPhotos } = usePhotos()
+  const { photos, loading: photosLoading, setPhotos } = usePhotos()
   const [trips, setTrips] = useState<Trip[]>([])
   const [locations, setLocations] = useState<Location[]>([])
+  const [tripsLoading, setTripsLoading] = useState(true)
   const [sidebarView, setSidebarView] = useState<SidebarView>('home')
   const [isEditing, setIsEditing] = useState(false)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
@@ -27,17 +27,38 @@ function App() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [mapFocusBounds, setMapFocusBounds] = useState<L.LatLngBounds | null>(null)
 
-  const handlePhotoClick = (photo: Photo) => {
+  const loading = photosLoading || tripsLoading
+
+  // Fetch trips on mount
+  useEffect(() => {
+    const fetchTrips = async () => {
+      try {
+        setTripsLoading(true)
+        const tripsData = await tripAPI.getAllTrips()
+        setTrips(tripsData)
+      } catch (error) {
+        console.error('Error fetching trips:', error)
+      } finally {
+        setTripsLoading(false)
+      }
+    }
+
+    fetchTrips()
+  }, [])
+
+  const handlePhotoClick = async (photo: Photo) => {
     console.log('Photo clicked:', photo)
 
-    // Get location with all photos
+    // Get location with all photos from API
     if (photo.location_id) {
-      const locationWithPhotos = getLocationWithPhotos(photo.location_id)
-      if (locationWithPhotos) {
-        setSelectedLocation(locationWithPhotos)
-        setLocationPhotos(locationWithPhotos.photos || [])
+      try {
+        const { location, photos } = await locationAPI.getLocationById(photo.location_id.toString())
+        setSelectedLocation({ ...location, photos })
+        setLocationPhotos(photos)
         setSidebarView('location-detail')
         setIsEditing(false)
+      } catch (error) {
+        console.error('Error fetching location:', error)
       }
     }
   }
@@ -67,24 +88,38 @@ function App() {
     setSidebarView('trip-list')
   }
 
-  const handleTripClick = (trip: Trip) => {
+  const handleTripClick = async (trip: Trip) => {
     console.log('Trip clicked:', trip)
     setSelectedTrip(trip)
     setSidebarView('trip-detail')
 
-    // Calculate bounds for trip locations and focus map (merge runtime + mock)
-    const runtimeTripLocs = locations.filter((loc) => loc.trip_id === trip.id)
-    const mockTripLocs = mockLocations.filter((loc) => loc.trip_id === trip.id)
-    const byId: Record<string, Location> = {}
-    for (const l of mockTripLocs) byId[l.id] = l
-    for (const l of runtimeTripLocs) byId[l.id] = { ...(byId[l.id] || {} as Location), ...l }
-    const tripLocations = Object.values(byId)
-    const bounds = calculateTripBounds(tripLocations)
+    // Fetch trip details including locations from API
+    try {
+      const tripData = await tripAPI.getTripById(trip.id.toString())
 
-    if (bounds) {
-      setMapFocusBounds(bounds)
-    } else {
-      // Fallback to city coordinates
+      // Update locations state with trip locations
+      setLocations(prev => {
+        const byId: Record<string, Location> = {}
+        for (const l of prev) byId[l.id] = l
+        for (const l of tripData.locations) byId[l.id] = l
+        return Object.values(byId)
+      })
+
+      // Calculate bounds for trip locations and focus map
+      const bounds = calculateTripBounds(tripData.locations)
+
+      if (bounds) {
+        setMapFocusBounds(bounds)
+      } else {
+        // Fallback to city coordinates
+        const cityCoords = getCityCoordinates(trip.city, trip.country)
+        if (cityCoords) {
+          setMapFocusBounds(createCityBounds(cityCoords))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching trip details:', error)
+      // Fallback to city coordinates on error
       const cityCoords = getCityCoordinates(trip.city, trip.country)
       if (cityCoords) {
         setMapFocusBounds(createCityBounds(cityCoords))
@@ -94,32 +129,27 @@ function App() {
 
   const handleLocationClick = async (location: Location) => {
     console.log('Location clicked:', location)
-    const runtime = locations.find(l => l.id === location.id) || location
 
-    // If we already have photos locally, use them; otherwise try API store, then mock
-    let enriched = runtime
-    if (!runtime.photos || runtime.photos.length === 0) {
-      try {
-        const fetched = await locationAPI.getLocationById(location.id)
-        enriched = { ...fetched.location, photos: fetched.photos }
+    // Fetch location details from API
+    try {
+      const { location: fetchedLocation, photos } = await locationAPI.getLocationById(location.id.toString())
+      const enriched = { ...fetchedLocation, photos }
 
-        // merge back into locations state so Trip views show counts and persist others
-        setLocations(prev => {
-          const byId: Record<string, Location> = {}
-          for (const l of prev) byId[l.id] = l
-          byId[enriched.id] = { ...(byId[enriched.id] || {} as Location), ...enriched }
-          return Object.values(byId)
-        })
-      } catch (e) {
-        const fallback = getLocationWithPhotos(location.id)
-        if (fallback) enriched = fallback
-      }
+      // Update locations state
+      setLocations(prev => {
+        const byId: Record<string, Location> = {}
+        for (const l of prev) byId[l.id] = l
+        byId[enriched.id] = enriched
+        return Object.values(byId)
+      })
+
+      setSelectedLocation(enriched)
+      setLocationPhotos(photos)
+      setSidebarView('location-detail')
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error fetching location:', error)
     }
-
-    setSelectedLocation(enriched)
-    setLocationPhotos(enriched.photos || [])
-    setSidebarView('location-detail')
-    setIsEditing(false)
   }
 
   const handleEditClick = () => {

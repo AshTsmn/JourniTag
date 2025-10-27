@@ -227,37 +227,58 @@ def set_cover_photo(photo_id):
     return flask.jsonify({'success': True, 'message': 'Cover photo updated'})
 
 
+@app.route('/api/photos', methods=['GET'])
+def get_all_photos():
+    """Get all photos for a user with location info."""
+    user_id = flask.request.args.get('user_id', type=int, default=1)
+
+    connection = get_db()
+    cursor = connection.execute(
+        """
+        SELECT p.*, l.name as location_name, l.trip_id
+        FROM Photos p
+        LEFT JOIN Locations l ON p.location_id = l.id
+        WHERE p.user_id = ?
+        ORDER BY p.taken_at DESC
+        """,
+        (user_id,)
+    )
+    photos = cursor.fetchall()
+
+    return flask.jsonify({'success': True, 'photos': photos})
+
+
 @app.route('/api/photos/<int:photo_id>', methods=['DELETE'])
 def delete_photo(photo_id):
     """Delete a photo."""
     user_id = flask.request.form.get('user_id', type=int)
-    
+
     if not user_id:
         return flask.jsonify({'success': False, 'error': 'user_id required'}), 400
-    
+
     connection = get_db()
-    
+
     # Get photo
     cursor = connection.execute("SELECT * FROM Photos WHERE id = ?", (photo_id,))
     photo = cursor.fetchone()
-    
+
     if not photo:
         return flask.jsonify({'success': False, 'error': 'Photo not found'}), 404
-    
+
     # Verify user owns this photo
     if photo['user_id'] != user_id:
         return flask.jsonify({'success': False, 'error': 'Not authorized'}), 403
-    
+
     # Delete file from storage
     import os
     file_path = f".{photo['file_url']}"  # Convert URL to file path
     if os.path.exists(file_path):
         os.remove(file_path)
-    
+
     # Delete from database
     connection.execute("DELETE FROM Photos WHERE id = ?", (photo_id,))
     connection.commit()
-    
+
     return flask.jsonify({'success': True, 'message': 'Photo deleted'})
 
 
@@ -341,21 +362,21 @@ def after_request(response):
 
 @app.route('/api/trips', methods=['GET'])
 def get_all_trips():
-    """Get all trips for a user with their cover photos."""
+    """Get all trips for a user with their cover photos, ratings, and photo counts."""
     user_id = flask.request.args.get('user_id', type=int, default=1)
-    
+
     connection = get_db()
     cursor = connection.execute(
         "SELECT * FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
         (user_id,)
     )
     trips = cursor.fetchall()
-    
-    # For each trip, get a cover photo
+
+    # For each trip, get cover photo, rating, and photo count
     trips_with_photos = []
     for trip in trips:
         trip_dict = dict(trip)
-        
+
         # Get a cover photo for this trip (first cover photo from any location)
         cursor = connection.execute(
             """
@@ -367,7 +388,7 @@ def get_all_trips():
             (trip['id'],)
         )
         cover_photo = cursor.fetchone()
-        
+
         # If no cover photo, just get any photo from this trip
         if not cover_photo:
             cursor = connection.execute(
@@ -381,10 +402,36 @@ def get_all_trips():
                 (trip['id'],)
             )
             cover_photo = cursor.fetchone()
-        
+
         trip_dict['cover_photo'] = dict(cover_photo) if cover_photo else None
+
+        # Calculate average rating from locations
+        cursor = connection.execute(
+            """
+            SELECT AVG(rating) as avg_rating
+            FROM Locations
+            WHERE trip_id = ? AND rating > 0
+            """,
+            (trip['id'],)
+        )
+        rating_result = cursor.fetchone()
+        trip_dict['rating'] = rating_result['avg_rating'] if rating_result['avg_rating'] else None
+
+        # Get photo count for this trip
+        cursor = connection.execute(
+            """
+            SELECT COUNT(*) as photo_count
+            FROM Photos p
+            JOIN Locations l ON p.location_id = l.id
+            WHERE l.trip_id = ?
+            """,
+            (trip['id'],)
+        )
+        count_result = cursor.fetchone()
+        trip_dict['photo_count'] = count_result['photo_count'] if count_result else 0
+
         trips_with_photos.append(trip_dict)
-    
+
     return flask.jsonify({'success': True, 'trips': trips_with_photos})
 
 
@@ -393,25 +440,63 @@ def get_all_trips():
 def get_trip_by_id(trip_id):
     """Get a single trip with its locations and photos."""
     connection = get_db()
-    
+
     cursor = connection.execute("SELECT * FROM Trips WHERE id = ?", (trip_id,))
     trip = cursor.fetchone()
-    
+
     if not trip:
         return flask.jsonify({'success': False, 'error': 'Trip not found'}), 404
-    
+
     cursor = connection.execute("SELECT * FROM Locations WHERE trip_id = ?", (trip_id,))
-    locations = cursor.fetchall()
-    
-    all_photos = []
-    for location in locations:
+    locations_raw = cursor.fetchall()
+
+    # Add tags to each location
+    locations = []
+    for location in locations_raw:
+        location_dict = dict(location)
+
+        # Get tags for this location
+        cursor = connection.execute(
+            """
+            SELECT t.name FROM Tags t
+            JOIN LocationTags lt ON t.id = lt.tag_id
+            WHERE lt.location_id = ?
+            """,
+            (location['id'],)
+        )
+        tags = [row['name'] for row in cursor.fetchall()]
+        location_dict['tags'] = tags
+
+        # Get photos for this location
         cursor = connection.execute("SELECT * FROM Photos WHERE location_id = ?", (location['id'],))
         photos = cursor.fetchall()
-        all_photos.extend(photos)
-    
+        location_dict['photos'] = photos
+
+        locations.append(location_dict)
+
+    # Get all photos for the trip
+    all_photos = []
+    for location in locations:
+        all_photos.extend(location['photos'])
+
+    # Get cover photo for trip
+    cursor = connection.execute(
+        """
+        SELECT p.* FROM Photos p
+        JOIN Locations l ON p.location_id = l.id
+        WHERE l.trip_id = ? AND p.is_cover_photo = 1
+        LIMIT 1
+        """,
+        (trip_id,)
+    )
+    cover_photo = cursor.fetchone()
+
+    trip_dict = dict(trip)
+    trip_dict['cover_photo'] = dict(cover_photo) if cover_photo else None
+
     return flask.jsonify({
         'success': True,
-        'trip': trip,
+        'trip': trip_dict,
         'locations': locations,
         'photos': all_photos
     })
@@ -460,21 +545,36 @@ def create_trip():
 
 @app.route('/api/locations/<int:location_id>', methods=['GET'])
 def get_location_by_id(location_id):
-    """Get a single location with its photos."""
+    """Get a single location with its photos and tags."""
     connection = get_db()
-    
+
     cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
     location = cursor.fetchone()
-    
+
     if not location:
         return flask.jsonify({'success': False, 'error': 'Location not found'}), 404
-    
+
+    location_dict = dict(location)
+
+    # Get tags for this location
+    cursor = connection.execute(
+        """
+        SELECT t.name FROM Tags t
+        JOIN LocationTags lt ON t.id = lt.tag_id
+        WHERE lt.location_id = ?
+        """,
+        (location_id,)
+    )
+    tags = [row['name'] for row in cursor.fetchall()]
+    location_dict['tags'] = tags
+
+    # Get photos for this location
     cursor = connection.execute("SELECT * FROM Photos WHERE location_id = ?", (location_id,))
     photos = cursor.fetchall()
-    
+
     return flask.jsonify({
         'success': True,
-        'location': location,
+        'location': location_dict,
         'photos': photos
     })
 

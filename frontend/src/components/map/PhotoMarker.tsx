@@ -7,18 +7,27 @@ import { Marker, Popup } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import type { Photo } from '@/types'
 
+const API_BASE_URL = 'http://localhost:8000'
+
 interface PhotoMarkerProps {
   photo: Photo
   onClick?: (photo: Photo) => void
 }
 
 export function PhotoMarker({ photo, onClick }: PhotoMarkerProps) {
+  // Skip photos with invalid coordinates
+  if (!photo.x || !photo.y || photo.x === 0 || photo.y === 0) {
+    return null
+  }
+
+  const photoUrl = `${API_BASE_URL}${photo.file_url}`
+
   // Create custom icon with photo thumbnail
   const customIcon = divIcon({
     html: `
       <div class="photo-marker">
         <img
-          src="${photo.file_url}"
+          src="${photoUrl}"
           alt="${photo.original_filename}"
           class="photo-marker-img"
         />
@@ -41,16 +50,16 @@ export function PhotoMarker({ photo, onClick }: PhotoMarkerProps) {
       <Popup>
         <div className="min-w-[200px]">
           <img
-            src={photo.file_url}
+            src={photoUrl}
             alt={photo.original_filename}
             className="w-full h-32 object-cover rounded-md mb-2"
           />
           <p className="text-sm font-medium">
-            {photo.location?.name || 'Unknown Location'}
+            {photo.location?.name || ''}
           </p>
           {photo.taken_at && (
             <p className="text-xs text-muted-foreground">
-              {new Date(photo.taken_at).toLocaleDateString()}
+              {new Date(photo.taken_at * 1000).toLocaleDateString()}
             </p>
           )}
         </div>

@@ -17,6 +17,8 @@ import { NotesSection } from './NotesSection'
 import type { Location, Photo } from '@/types'
 import { TAG_OPTIONS } from '@/types'
 
+const API_BASE_URL = 'http://localhost:8000'
+
 interface LocationDetailEditProps {
   location: Location
   photos: Photo[]
@@ -73,7 +75,7 @@ export function LocationDetailEdit({
               {photos.slice(0, 3).map((photo) => (
                 <img
                   key={photo.id}
-                  src={photo.file_url}
+                  src={`${API_BASE_URL}${photo.file_url}`}
                   alt={photo.original_filename}
                   className="w-full h-full object-cover rounded-md"
                 />

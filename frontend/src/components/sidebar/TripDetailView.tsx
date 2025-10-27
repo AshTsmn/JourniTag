@@ -7,8 +7,9 @@ import { ArrowLeft, MapPin, Star, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import type { Trip, Location } from '@/types'
-import { mockLocations } from '@/lib/mockData'
 import { cn } from '@/lib/utils'
+
+const API_BASE_URL = 'http://localhost:8000'
 
 interface TripDetailViewProps {
   trip: Trip
@@ -18,13 +19,8 @@ interface TripDetailViewProps {
 }
 
 export function TripDetailView({ trip, onBack, onLocationClick, locations }: TripDetailViewProps) {
-  // Merge runtime and mock locations for this trip (runtime overrides mock)
-  const stateForTrip = (locations ?? []).filter((loc) => loc.trip_id === trip.id)
-  const mockForTrip = mockLocations.filter((loc) => loc.trip_id === trip.id)
-  const byId: Record<string, Location> = {}
-  for (const l of mockForTrip) byId[l.id] = l
-  for (const l of stateForTrip) byId[l.id] = { ...(byId[l.id] || {} as Location), ...l }
-  const tripLocations = Object.values(byId)
+  // Filter locations for this trip
+  const tripLocations = (locations ?? []).filter((loc) => loc.trip_id === trip.id)
 
   const formatDateRange = (start: string, end: string) => {
     const startDate = new Date(start)
@@ -67,9 +63,18 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
 
       {/* Trip Cover Photo */}
       <div className="relative h-40 bg-gradient-to-br from-purple-500 to-pink-500">
-        <div className="absolute inset-0 flex items-center justify-center text-white/20 text-xs">
-          Trip cover photo placeholder
-        </div>
+        {trip.cover_photo?.file_url ? (
+          <img
+            src={`${API_BASE_URL}${trip.cover_photo.file_url}`}
+            alt={trip.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-white/20 text-xs">
+            No cover photo
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         {averageRating > 0 && (
           <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/50 px-3 py-1.5 rounded">
             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
