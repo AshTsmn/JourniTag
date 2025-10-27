@@ -14,9 +14,14 @@ import type { Location } from '@/types'
 export function calculateTripBounds(locations: Location[]): L.LatLngBounds | null {
   if (locations.length === 0) return null
 
+  // Filter out locations without valid coordinates
+  const validLocations = locations.filter((loc) => loc.x != null && loc.y != null && loc.x !== 0 && loc.y !== 0)
+
+  if (validLocations.length === 0) return null
+
   // Single location: create small bounds around it
-  if (locations.length === 1) {
-    const loc = locations[0]
+  if (validLocations.length === 1) {
+    const loc = validLocations[0]
     return L.latLngBounds([
       [loc.y - 0.01, loc.x - 0.01],
       [loc.y + 0.01, loc.x + 0.01],
@@ -24,8 +29,8 @@ export function calculateTripBounds(locations: Location[]): L.LatLngBounds | nul
   }
 
   // Multiple locations: calculate actual bounds
-  const lats = locations.map((loc) => loc.y)
-  const lngs = locations.map((loc) => loc.x)
+  const lats = validLocations.map((loc) => loc.y)
+  const lngs = validLocations.map((loc) => loc.x)
 
   return L.latLngBounds([
     [Math.min(...lats), Math.min(...lngs)],
