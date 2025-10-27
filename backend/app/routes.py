@@ -17,7 +17,6 @@ def get_index():
 
     return flask.render_template("index.html", **context)
 
-
 @app.route('/api/photos/batch-upload', methods=['POST'])
 def batch_upload_photos():
     """
@@ -335,7 +334,6 @@ def after_request(response):
     return response
 
 
-from datetime import datetime
 
 # ============================================================================
 # TRIP ENDPOINTS
@@ -343,7 +341,7 @@ from datetime import datetime
 
 @app.route('/api/trips', methods=['GET'])
 def get_all_trips():
-    """Get all trips for a user."""
+    """Get all trips for a user with their cover photos."""
     user_id = flask.request.args.get('user_id', type=int, default=1)
     
     connection = get_db()
@@ -353,7 +351,42 @@ def get_all_trips():
     )
     trips = cursor.fetchall()
     
-    return flask.jsonify({'success': True, 'trips': trips})
+    # For each trip, get a cover photo
+    trips_with_photos = []
+    for trip in trips:
+        trip_dict = dict(trip)
+        
+        # Get a cover photo for this trip (first cover photo from any location)
+        cursor = connection.execute(
+            """
+            SELECT p.* FROM Photos p
+            JOIN Locations l ON p.location_id = l.id
+            WHERE l.trip_id = ? AND p.is_cover_photo = 1
+            LIMIT 1
+            """,
+            (trip['id'],)
+        )
+        cover_photo = cursor.fetchone()
+        
+        # If no cover photo, just get any photo from this trip
+        if not cover_photo:
+            cursor = connection.execute(
+                """
+                SELECT p.* FROM Photos p
+                JOIN Locations l ON p.location_id = l.id
+                WHERE l.trip_id = ?
+                ORDER BY p.taken_at DESC
+                LIMIT 1
+                """,
+                (trip['id'],)
+            )
+            cover_photo = cursor.fetchone()
+        
+        trip_dict['cover_photo'] = dict(cover_photo) if cover_photo else None
+        trips_with_photos.append(trip_dict)
+    
+    return flask.jsonify({'success': True, 'trips': trips_with_photos})
+
 
 
 @app.route('/api/trips/<int:trip_id>', methods=['GET'])

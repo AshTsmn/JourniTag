@@ -37,3 +37,8 @@ VALUES
  (4, 5),
  (4, 6),
  (5, 2);
+
+INSERT INTO Photos (location_id, user_id, file_url, is_cover_photo)
+VALUES 
+(1, 1, '../uploads/photos/1761521952_dfa07467.jpg', TRUE),
+(1, 2, '../uploads/photos/1761521984_f113db8f.jpg', TRUE); 
