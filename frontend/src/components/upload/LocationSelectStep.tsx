@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MapPin, Plus, Search } from 'lucide-react'
 import { Trip, Location } from '@/types'
-import { mockTrips, mockLocations } from '@/lib/mockData'
+import { tripAPI } from '@/services/api'
 
 
 interface LocationSelectStepProps {
@@ -27,6 +27,9 @@ interface LocationSelectStepProps {
 
 export function LocationSelectStep({ onLocationSelected, onBack, onClose, uploadState }: LocationSelectStepProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [trips, setTrips] = useState<Trip[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
   const [showNewTripForm, setShowNewTripForm] = useState(false)
@@ -43,20 +46,54 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
     address: '',
   })
 
+  // Fetch trips on mount
+  useEffect(() => {
+    const fetchTrips = async () => {
+      try {
+        setLoading(true)
+        const tripsData = await tripAPI.getAllTrips()
+        setTrips(tripsData)
+      } catch (error) {
+        console.error('Error fetching trips:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTrips()
+  }, [])
+
+  // Fetch locations for selected trip
+  useEffect(() => {
+    const fetchLocations = async () => {
+      if (!selectedTrip) {
+        setLocations([])
+        return
+      }
+
+      try {
+        const tripData = await tripAPI.getTripById(selectedTrip.id.toString())
+        setLocations(tripData.locations)
+      } catch (error) {
+        console.error('Error fetching locations:', error)
+        setLocations([])
+      }
+    }
+
+    fetchLocations()
+  }, [selectedTrip])
+
   // Filter trips and locations based on search
-  const filteredTrips = mockTrips.filter(trip =>
+  const filteredTrips = trips.filter(trip =>
     trip.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     trip.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
     trip.country.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredLocations = selectedTrip
-    ? mockLocations.filter(location =>
-        location.trip_id === selectedTrip.id &&
-        (location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         location.address.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : []
+  const filteredLocations = locations.filter(location =>
+    location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    location.address.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const handleTripSelect = useCallback((trip: Trip) => {
     setSelectedTrip(trip)

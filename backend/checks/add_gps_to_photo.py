@@ -117,7 +117,7 @@ LOCATIONS = {
     'shibuya': (35.6595, 139.7004),
     'tokyo_tower': (35.6586, 139.7454),
     'gyoen': (35.6852, 139.7100),  # Shinjuku Gyoen
-    'ann_arbor': (42.2808, -83.7430),
+    'ann_arbor': (42.2808, -83.890),
     'new_york': (40.7128, -74.0060),
     'san_francisco': (37.7749, -122.4194),
 }

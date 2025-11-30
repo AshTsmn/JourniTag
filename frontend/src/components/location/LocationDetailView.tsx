@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import type { Location, Photo } from '@/types'
 
+const API_BASE_URL = 'http://localhost:8000'
+
 interface LocationDetailViewProps {
   location: Location
   photos: Photo[]
@@ -85,7 +87,7 @@ export function LocationDetailView({
               {photosToShow.map((photo) => (
                 <img
                   key={photo.id}
-                  src={photo.file_url}
+                  src={`${API_BASE_URL}${photo.file_url}`}
                   alt={photo.original_filename}
                   className="h-full w-auto object-cover rounded-md"
                 />

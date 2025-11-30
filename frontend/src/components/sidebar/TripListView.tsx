@@ -7,8 +7,9 @@ import { ArrowLeft, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Trip } from '@/types'
-import { mockTrips } from '@/lib/mockData'
 import { cn } from '@/lib/utils'
+
+const API_BASE_URL = 'http://localhost:8000'
 
 interface TripListViewProps {
   onBack: () => void
@@ -40,16 +41,15 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
       {/* Trip List - Scrollable */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-3">
-          {(
-            // Combine mock trips with runtime-created trips (if any), dedup by id
-            (trips && trips.length > 0
-              ? [...mockTrips, ...trips].filter(
-                  (t, idx, arr) => arr.findIndex((x) => x.id === t.id) === idx
-                )
-              : mockTrips)
-          ).map((trip) => (
-            <TripCard key={trip.id} trip={trip} onClick={() => onTripClick(trip)} />
-          ))}
+          {trips && trips.length > 0 ? (
+            trips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} onClick={() => onTripClick(trip)} />
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No trips yet. Upload some photos to get started!
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -99,10 +99,17 @@ function TripCard({ trip, onClick }: TripCardProps) {
     >
       {/* Cover Photo */}
       <div className="relative h-40 bg-gradient-to-br from-purple-500 to-pink-500">
-        {/* Placeholder gradient - will be replaced with actual photo */}
-        <div className="absolute inset-0 flex items-center justify-center text-white/20 text-xs">
-          Photo placeholder
-        </div>
+        {trip.cover_photo?.file_url ? (
+          <img
+            src={`${API_BASE_URL}${trip.cover_photo.file_url}`}
+            alt={trip.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-white/20 text-xs">
+            No photo
+          </div>
+        )}
 
         {/* Trip Title & Rating Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />

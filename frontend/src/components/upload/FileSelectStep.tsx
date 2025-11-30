@@ -1,9 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Upload, X, Image as ImageIcon, MapPin } from 'lucide-react'
+import { Upload, X, MapPin } from 'lucide-react'
 import { UploadState } from '@/types'
-import { extractExifData, hasExifData } from '@/lib/exif'
 
 interface FileSelectStepProps {
   onFilesSelected: (files: File[], previews: UploadState['previews']) => void
@@ -14,6 +12,7 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<UploadState['previews']>([])
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = useCallback(async (selectedFiles: FileList | File[]) => {
@@ -29,56 +28,77 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
     console.log('Image files:', imageFiles)
 
     if (imageFiles.length === 0) {
-      alert('Please select supported image files (JPEG, PNG, GIF, WebP, BMP). HEIC files are not supported in web browsers.')
+      alert('Please select supported image files (JPEG, PNG, GIF, WebP, BMP). HEIC files need to be converted first.')
       return
     }
 
     const newFiles = [...files, ...imageFiles]
     setFiles(newFiles)
+    setIsProcessing(true)
 
-    // Create previews for new files with EXIF data
-    const newPreviews = await Promise.all(imageFiles.map(async (file) => {
-      console.log('Creating preview for file:', file.name, file.type, file.size)
-
-      // Create a more reliable preview using FileReader
-      const preview = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          if (e.target?.result) {
-            resolve(e.target.result as string)
-          } else {
-            reject(new Error('Failed to read file'))
+    try {
+      // Create previews (locally, for display)
+      const localPreviews = await Promise.all(imageFiles.map(async (file) => {
+        const preview = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            if (e.target?.result) {
+              resolve(e.target.result as string)
+            } else {
+              reject(new Error('Failed to read file'))
+            }
           }
-        }
-        reader.onerror = () => reject(new Error('FileReader error'))
-        reader.readAsDataURL(file)
+          reader.onerror = () => reject(new Error('FileReader error'))
+          reader.readAsDataURL(file)
+        })
+
+        return { file, preview, coordinates: undefined, exifData: undefined }
+      }))
+
+      // Send files to backend for EXIF extraction
+      const formData = new FormData()
+      imageFiles.forEach(file => {
+        formData.append('files', file)
       })
 
-      let exifData
+      console.log('Sending files to backend for EXIF extraction...')
+      const response = await fetch('http://localhost:8000/api/photos/extract-exif', {
+        method: 'POST',
+        body: formData,
+      })
 
-      // Extract EXIF data if the file supports it
-      if (hasExifData(file)) {
-        try {
-          exifData = await extractExifData(file)
-        } catch (error) {
-          console.warn('Failed to extract EXIF data:', error)
+      if (!response.ok) {
+        throw new Error(`Backend error: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('EXIF data from backend:', data)
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to extract EXIF data')
+      }
+
+      // Merge backend EXIF data with local previews
+      const mergedPreviews = localPreviews.map((preview, index) => {
+        const exifResult = data.photos[index]
+        return {
+          ...preview,
+          coordinates: exifResult?.coordinates?.latitude && exifResult?.coordinates?.longitude ? {
+            x: exifResult.coordinates.longitude,
+            y: exifResult.coordinates.latitude,
+          } : undefined,
+          exifData: exifResult,
         }
-      }
+      })
 
-      return {
-        file,
-        preview,
-        coordinates: exifData?.latitude && exifData?.longitude ? {
-          x: exifData.longitude,
-          y: exifData.latitude,
-        } : undefined,
-        exifData,
-      }
-    }))
-
-    setPreviews(prev => [...prev, ...newPreviews])
-    console.log('Updated files:', newFiles)
-    console.log('Updated previews:', [...previews, ...newPreviews])
+      setPreviews(prev => [...prev, ...mergedPreviews])
+      console.log('Updated previews with backend EXIF data:', mergedPreviews)
+    } catch (error) {
+      console.error('Error processing files:', error)
+      alert(`Error processing files: ${error.message}`)
+    } finally {
+      setIsProcessing(false)
+    }
   }, [files])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -155,6 +175,7 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
         className={`
           border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
           ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+          ${isProcessing ? 'opacity-50 pointer-events-none' : ''}
         `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -162,19 +183,26 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
         onClick={openFileDialog}
       >
         <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-        <h3 className="text-lg font-semibold mb-2">Upload Photos</h3>
+        <h3 className="text-lg font-semibold mb-2">
+          {isProcessing ? 'Processing photos...' : 'Upload Photos'}
+        </h3>
         <p className="text-gray-600 mb-4">
-          Drag and drop your photos here, or click to browse
+          {isProcessing ? 
+            'Extracting GPS coordinates from your photos...' :
+            'Drag and drop your photos here, or click to browse'
+          }
         </p>
-        <Button
-          onClick={(e) => {
-            e.stopPropagation()
-            openFileDialog()
-          }}
-          variant="outline"
-        >
-          Choose Files
-        </Button>
+        {!isProcessing && (
+          <Button
+            onClick={(e) => {
+              e.stopPropagation()
+              openFileDialog()
+            }}
+            variant="outline"
+          >
+            Choose Files
+          </Button>
+        )}
       </div>
 
       {/* Selected files preview */}
@@ -194,11 +222,6 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
                       width: '100%',
                       height: '100%',
                       display: 'block'
-                    }}
-                    onError={(e) => {
-                      console.error('Image failed to load:', preview.preview)
-                      // Show a placeholder instead of hiding the image
-                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y3ZjdmNyIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PHRleHQgeD0iNTAiIHk9IjcwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5GYWlsZWQ8L3RleHQ+PC9zdmc+'
                     }}
                   />
                   {preview.coordinates && (
@@ -238,18 +261,18 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
         </div>
       )}
 
-      {/* Action buttons - Always visible and sticky */}
+      {/* Action buttons */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 mt-6 -mx-6 px-6 py-4 shadow-lg">
         <div className="flex justify-between">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
             Cancel
           </Button>
           <Button
             onClick={handleContinue}
-            disabled={files.length === 0}
-            className={`px-6 py-2 ${files.length === 0 ? 'opacity-50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+            disabled={files.length === 0 || isProcessing}
+            className={`px-6 py-2 ${files.length === 0 || isProcessing ? 'opacity-50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
-            Continue ({files.length} photos)
+            {isProcessing ? 'Processing...' : `Continue (${files.length} photos)`}
           </Button>
         </div>
       </div>
