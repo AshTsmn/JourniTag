@@ -581,7 +581,7 @@ def get_location_by_id(location_id):
 
 @app.route('/api/locations', methods=['POST'])
 def create_location():
-    """Create a new location."""
+    """Create a new location with geocoded address."""
     data = flask.request.get_json()
     
     trip_id = data.get('trip_id')
@@ -595,8 +595,38 @@ def create_location():
     time_needed = data.get('time_needed', 0)
     best_time_to_visit = data.get('best_time_to_visit', '')
     
-    if not trip_id or not name:
-        return flask.jsonify({'success': False, 'error': 'trip_id and name are required'}), 400
+    if not trip_id:
+        return flask.jsonify({'success': False, 'error': 'trip_id is required'}), 400
+    
+    # If we have valid GPS coordinates, ALWAYS use geocoding to get precise address
+    if x != 0.0 and y != 0.0:
+        print(f"🌍 Geocoding location at ({y:.6f}, {x:.6f})")
+        from app.geocoding import geocoding_service
+        location_info = geocoding_service.reverse_geocode(y, x)
+        
+        if location_info:
+            # Use geocoded name if no name was provided, otherwise keep the provided name
+            geocoded_name = location_info['name']
+            geocoded_address = location_info['address']
+            
+            # If user provided a name, keep it. Otherwise use geocoded name.
+            if not name or name == f"{location_info.get('city', '')}, {location_info.get('country', '')}":
+                name = geocoded_name
+            
+            # ALWAYS use geocoded address (it's more detailed)
+            address = geocoded_address
+            
+            print(f"✅ Geocoded: {name} at {address}")
+        else:
+            print(f"⚠️ Geocoding failed, using fallback")
+            if not name:
+                name = f"Location at ({y:.4f}, {x:.4f})"
+            if not address:
+                address = "Address not available"
+    
+    # If no name provided and no coordinates, require name
+    if not name:
+        return flask.jsonify({'success': False, 'error': 'name or coordinates required'}), 400
     
     connection = get_db()
     created_at = int(datetime.now().timestamp())
@@ -610,15 +640,13 @@ def create_location():
         (trip_id, x, y, name, address, rating, notes, time_needed, best_time_to_visit, created_at)
     )
     
-    # TO IMPLEMENT: ADDING TAGS 
-    
     location_id = cursor.lastrowid
     connection.commit()
     
     cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
     location = cursor.fetchone()
     
-    print(f"✅ Created location: {name} (ID: {location_id}) for trip {trip_id}")
+    print(f"✅ Created location: {name} (ID: {location_id}) at {address}")
     
     return flask.jsonify({'success': True, 'location': location})
 
