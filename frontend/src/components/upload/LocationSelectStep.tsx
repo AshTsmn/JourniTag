@@ -114,14 +114,65 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
     setSelectedLocation(null)
   }, [])
 
-  const handleNewLocation = useCallback(() => {
-    if (!selectedTrip) {
-      alert('Please select a trip first.')
-      return
+  const handleNewLocation = useCallback(async () => {
+  if (!selectedTrip) {
+    alert('Please select a trip first.')
+    return
+  }
+  
+  // Get GPS coordinates from uploaded photos
+  const coordinates = uploadState?.previews.find(p => p.coordinates)?.coordinates
+  
+  if (!coordinates) {
+    alert('No GPS data found in photos. Please select photos with location data.')
+    return
+  }
+  
+  console.log('Auto-geocoding coordinates:', coordinates)
+  
+  try {
+    // Call backend geocoding API
+    const response = await fetch('http://localhost:8000/api/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: coordinates.y,
+        longitude: coordinates.x,
+      }),
+    })
+    
+    if (!response.ok) {
+      throw new Error('Geocoding failed')
     }
-    setShowNewLocationForm(true)
-    setSelectedLocation(null)
-  }, [selectedTrip])
+    
+    const data = await response.json()
+    
+    if (data.success) {
+      console.log('✅ Geocoded location:', data.name, data.address)
+      
+      // Automatically pass the geocoded location to the next step
+      onLocationSelected({
+        tripId: selectedTrip.id,
+        newLocation: {
+          name: data.name,
+          address: data.address,
+          trip_id: selectedTrip.id,
+          rating: 5,
+          tags: [],
+          cost_level: 'Free',
+          x: coordinates.x,
+          y: coordinates.y,
+        },
+        coordinates,
+      })
+    } else {
+      throw new Error(data.error || 'Geocoding failed')
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error)
+    alert('Could not auto-detect location name. Please try again.')
+  }
+}, [selectedTrip, uploadState, onLocationSelected])
 
   const handleNewTripSubmit = useCallback(() => {
     console.log('handleNewTripSubmit called with:', newTripData)
@@ -189,16 +240,14 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
     console.log('LocationSelectStep handleContinue called with:', { showNewTripForm, showNewLocationForm, selectedTrip, selectedLocation })
     if (showNewTripForm) {
       handleNewTripSubmit()
-    } else if (showNewLocationForm) {
-      handleNewLocationSubmit()
-    } else {
+    }  else {
       handleExistingLocationSubmit()
     }
   }, [showNewTripForm, showNewLocationForm, handleNewTripSubmit, handleNewLocationSubmit, handleExistingLocationSubmit])
 
   const canContinue =
     (showNewTripForm && newTripData.title && newTripData.city && newTripData.country) ||
-    (showNewLocationForm && newLocationData.name && newLocationData.address) ||
+    // (showNewLocationForm && newLocationData.name && newLocationData.address) ||
     (selectedTrip && selectedLocation)
 
   // Check if any photos have GPS coordinates
@@ -276,33 +325,7 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
         </Card>
       )}
 
-      {/* New Location Form */}
-      {showNewLocationForm && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Create New Location</h3>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="location-name">Location Name</Label>
-              <Input
-                id="location-name"
-                value={newLocationData.name}
-                onChange={(e) => setNewLocationData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Sensō-ji Temple"
-              />
-            </div>
-            <div>
-              <Label htmlFor="location-address">Address</Label>
-              <Input
-                id="location-address"
-                value={newLocationData.address}
-                onChange={(e) => setNewLocationData(prev => ({ ...prev, address: e.target.value }))}
-                placeholder="Full address"
-              />
-            </div>
-            {/* Coordinates come from EXIF automatically; fields hidden */}
-          </div>
-        </Card>
-      )}
+      {/* New Location Form - REMOVED, now auto-geocodes */}
 
       {/* Trip Selection */}
       {!showNewTripForm && !showNewLocationForm && (

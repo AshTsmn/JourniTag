@@ -581,7 +581,7 @@ def get_location_by_id(location_id):
 
 @app.route('/api/locations', methods=['POST'])
 def create_location():
-    """Create a new location."""
+    """Create a new location or find existing nearby location with geocoded address."""
     data = flask.request.get_json()
     
     trip_id = data.get('trip_id')
@@ -595,10 +595,65 @@ def create_location():
     time_needed = data.get('time_needed', 0)
     best_time_to_visit = data.get('best_time_to_visit', '')
     
-    if not trip_id or not name:
-        return flask.jsonify({'success': False, 'error': 'trip_id and name are required'}), 400
+    if not trip_id:
+        return flask.jsonify({'success': False, 'error': 'trip_id is required'}), 400
     
     connection = get_db()
+    
+    # If we have valid GPS coordinates, check if a location already exists nearby
+    if x != 0.0 and y != 0.0:
+        # Search for locations within ~50 meters (roughly 0.0005 degrees)
+        threshold = 0.0005
+        
+        cursor = connection.execute(
+            """
+            SELECT * FROM Locations 
+            WHERE trip_id = ? 
+            AND x BETWEEN ? AND ? 
+            AND y BETWEEN ? AND ?
+            LIMIT 1
+            """,
+            (trip_id, 
+             x - threshold, x + threshold,
+             y - threshold, y + threshold)
+        )
+        existing_location = cursor.fetchone()
+        
+        if existing_location:
+            print(f"✅ Found existing location nearby: {existing_location['name']} (ID: {existing_location['id']})")
+            return flask.jsonify({
+                'success': True, 
+                'location': dict(existing_location),
+                'message': 'Using existing nearby location'
+            })
+        
+        # No nearby location found - geocode and create new one
+        print(f"🌍 No nearby location found. Geocoding at ({y:.6f}, {x:.6f})")
+        from app.geocoding import geocoding_service
+        location_info = geocoding_service.reverse_geocode(y, x)
+        
+        if location_info:
+            # Use geocoded name if no name was provided
+            geocoded_name = location_info['name']
+            geocoded_address = location_info['address']
+           
+            # ALWAYS use geocoded address (it's more detailed)
+            name = geocoded_name
+            address = geocoded_address
+            
+            print(f"✅ Geocoded: {name} at {address}")
+        else:
+            print(f"⚠️ Geocoding failed, using fallback")
+            if not name:
+                name = f"Location at ({y:.4f}, {x:.4f})"
+            if not address:
+                address = "Address not available"
+    
+    # If no name provided and no coordinates, require name
+    if not name:
+        return flask.jsonify({'success': False, 'error': 'name or coordinates required'}), 400
+    
+    # Create new location
     created_at = int(datetime.now().timestamp())
     
     cursor = connection.execute(
@@ -610,19 +665,15 @@ def create_location():
         (trip_id, x, y, name, address, rating, notes, time_needed, best_time_to_visit, created_at)
     )
     
-    # TO IMPLEMENT: ADDING TAGS 
-    
     location_id = cursor.lastrowid
     connection.commit()
     
     cursor = connection.execute("SELECT * FROM Locations WHERE id = ?", (location_id,))
     location = cursor.fetchone()
     
-    print(f"✅ Created location: {name} (ID: {location_id}) for trip {trip_id}")
+    print(f"✅ Created NEW location: {name} (ID: {location_id}) at {address}")
     
     return flask.jsonify({'success': True, 'location': location})
-
-
 @app.route('/api/locations/<int:location_id>', methods=['PUT'])
 def update_location(location_id):
     """Update a location."""
@@ -703,3 +754,35 @@ def update_location(location_id):
     print(f"✅ Updated location: {name} (ID: {location_id})")
 
     return flask.jsonify({'success': True, 'location': updated_location})
+
+@app.route('/api/geocode', methods=['POST'])
+def geocode_coordinates():
+    """Geocode coordinates to get location name and address."""
+    data = flask.request.get_json()
+    
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+    
+    if latitude is None or longitude is None:
+        return flask.jsonify({'success': False, 'error': 'latitude and longitude required'}), 400
+    
+    from app.geocoding import geocoding_service
+    
+    print(f"🌍 Geocoding: ({latitude:.6f}, {longitude:.6f})")
+    location_info = geocoding_service.reverse_geocode(latitude, longitude)
+    
+    if location_info:
+        print(f"✅ Found: {location_info['name']} at {location_info['address']}")
+        return flask.jsonify({
+            'success': True,
+            'name': location_info['name'],
+            'address': location_info['address'],
+            'city': location_info['city'],
+            'state': location_info['state'],
+            'country': location_info['country'],
+        })
+    else:
+        return flask.jsonify({
+            'success': False,
+            'error': 'Could not geocode coordinates'
+        }), 404

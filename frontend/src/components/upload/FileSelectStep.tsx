@@ -20,7 +20,7 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
     const fileArray = Array.from(selectedFiles)
 
     // Filter for supported image types
-    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp']
+    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/heic', 'image/heif']
     const imageFiles = fileArray.filter(file =>
       file.type.startsWith('image/') && supportedTypes.includes(file.type.toLowerCase())
     )
@@ -165,7 +165,7 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp"
+        accept="image/*,.heic,.heif"
         onChange={handleFileInputChange}
         className="hidden"
       />
