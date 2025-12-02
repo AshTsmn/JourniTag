@@ -703,3 +703,368 @@ def update_location(location_id):
     print(f"✅ Updated location: {name} (ID: {location_id})")
 
     return flask.jsonify({'success': True, 'location': updated_location})
+
+    """Minimal auth and friends routes - Add to your routes.py"""
+from datetime import datetime
+
+# Global variable to store "logged in" user (resets on server restart)
+current_user = None
+
+
+# ============================================================================
+# AUTH - BARE MINIMUM
+# ============================================================================
+
+@app.route('/api/auth/signup', methods=['POST'])
+def signup():
+    """Create account (plain text password for demo)."""
+    data = flask.request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name', username)
+    
+    if not username or not email or not password:
+        return flask.jsonify({'success': False, 'error': 'Missing fields'}), 400
+    
+    connection = get_db()
+    
+    # Check if exists
+    cursor = connection.execute(
+        "SELECT id FROM Users WHERE username = ? OR email = ?",
+        (username, email)
+    )
+    if cursor.fetchone():
+        return flask.jsonify({'success': False, 'error': 'User already exists'}), 400
+    
+    # Create user
+    created_at = int(datetime.now().timestamp())
+    cursor = connection.execute(
+        "INSERT INTO Users (username, email, password, name, created_at) VALUES (?, ?, ?, ?, ?)",
+        (username, email, password, name, created_at)
+    )
+    user_id = cursor.lastrowid
+    connection.commit()
+    
+    # Auto-login
+    global current_user
+    current_user = {
+        'id': user_id,
+        'username': username,
+        'email': email,
+        'name': name
+    }
+    
+    return flask.jsonify({'success': True, 'user': current_user})
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Login (plain text password check)."""
+    data = flask.request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return flask.jsonify({'success': False, 'error': 'Missing fields'}), 400
+    
+    connection = get_db()
+    cursor = connection.execute(
+        "SELECT * FROM Users WHERE (username = ? OR email = ?) AND password = ?",
+        (username, username, password)
+    )
+    user = cursor.fetchone()
+    
+    if not user:
+        return flask.jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+    
+    # Set current user
+    global current_user
+    current_user = {
+        'id': user['id'],
+        'username': user['username'],
+        'email': user['email'],
+        'name': user['name']
+    }
+    
+    return flask.jsonify({'success': True, 'user': current_user})
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def get_current_user_info():
+    """Get logged in user."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    return flask.jsonify({'success': True, 'user': current_user})
+
+
+# ============================================================================
+# FRIENDS - BARE MINIMUM
+# ============================================================================
+
+@app.route('/api/friends/search', methods=['GET'])
+def search_users():
+    """Search for users."""
+    query = flask.request.args.get('query', '')
+    
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    connection = get_db()
+    cursor = connection.execute(
+        """
+        SELECT id, username, email, name
+        FROM Users
+        WHERE (username LIKE ? OR email LIKE ? OR name LIKE ?) AND id != ?
+        LIMIT 10
+        """,
+        (f'%{query}%', f'%{query}%', f'%{query}%', current_user['id'])
+    )
+    users = cursor.fetchall()
+    
+    return flask.jsonify({'success': True, 'users': users})
+
+
+@app.route('/api/friends/add', methods=['POST'])
+def add_friend():
+    """Add friend instantly (no approval needed)."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    data = flask.request.get_json()
+    friend_id = data.get('friend_id')
+    
+    if not friend_id:
+        return flask.jsonify({'success': False, 'error': 'friend_id required'}), 400
+    
+    if current_user['id'] == friend_id:
+        return flask.jsonify({'success': False, 'error': 'Cannot add yourself'}), 400
+    
+    connection = get_db()
+    
+    # Check if already friends
+    cursor = connection.execute(
+        "SELECT * FROM Friendships WHERE user_id = ? AND friend_id = ?",
+        (current_user['id'], friend_id)
+    )
+    if cursor.fetchone():
+        return flask.jsonify({'success': False, 'error': 'Already friends'}), 400
+    
+    # Add friendship
+    created_at = int(datetime.now().timestamp())
+    connection.execute(
+        "INSERT INTO Friendships (user_id, friend_id, created_at) VALUES (?, ?, ?)",
+        (current_user['id'], friend_id, created_at)
+    )
+    connection.commit()
+    
+    return flask.jsonify({'success': True, 'message': 'Friend added'})
+
+
+@app.route('/api/friends', methods=['GET'])
+def get_friends():
+    """Get list of friends."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    connection = get_db()
+    cursor = connection.execute(
+        """
+        SELECT u.id, u.username, u.email, u.name, u.profile_photo_url
+        FROM Users u
+        JOIN Friendships f ON f.friend_id = u.id
+        WHERE f.user_id = ?
+        ORDER BY u.username
+        """,
+        (current_user['id'],)
+    )
+    friends = cursor.fetchall()
+    
+    return flask.jsonify({'success': True, 'friends': friends})
+
+
+# ============================================================================
+# SHARING - BARE MINIMUM (using your existing SharedTrips table structure)
+# ============================================================================
+
+@app.route('/api/trips/<int:trip_id>/share', methods=['POST'])
+def share_trip(trip_id):
+    """Share trip with friend (view-only)."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    data = flask.request.get_json()
+    friend_id = data.get('friend_id')
+    
+    if not friend_id:
+        return flask.jsonify({'success': False, 'error': 'friend_id required'}), 400
+    
+    connection = get_db()
+    
+    # Verify trip ownership
+    cursor = connection.execute(
+        "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
+        (trip_id, current_user['id'])
+    )
+    trip = cursor.fetchone()
+    
+    if not trip:
+        return flask.jsonify({'success': False, 'error': 'Trip not found'}), 404
+    
+    # Get friend's email
+    cursor = connection.execute("SELECT email FROM Users WHERE id = ?", (friend_id,))
+    friend = cursor.fetchone()
+    
+    if not friend:
+        return flask.jsonify({'success': False, 'error': 'Friend not found'}), 404
+    
+    # Check if already shared
+    cursor = connection.execute(
+        "SELECT * FROM SharedTrips WHERE trip_id = ? AND shared_with_user_id = ?",
+        (trip_id, friend_id)
+    )
+    if cursor.fetchone():
+        return flask.jsonify({'success': True, 'message': 'Already shared'})
+    
+    # Share trip
+    created_at = int(datetime.now().timestamp())
+    connection.execute(
+        """
+        INSERT INTO SharedTrips 
+        (trip_id, shared_by_user_id, shared_with_user_id, shared_with_email, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (trip_id, current_user['id'], friend_id, friend['email'], created_at)
+    )
+    connection.commit()
+    
+    return flask.jsonify({'success': True, 'message': 'Trip shared'})
+
+
+@app.route('/api/trips/<int:trip_id>/shared-with', methods=['GET'])
+def get_trip_shares(trip_id):
+    """Get list of users trip is shared with."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    connection = get_db()
+    
+    # Verify ownership
+    cursor = connection.execute(
+        "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
+        (trip_id, current_user['id'])
+    )
+    if not cursor.fetchone():
+        return flask.jsonify({'success': False, 'error': 'Not authorized'}), 403
+    
+    # Get shared users
+    cursor = connection.execute(
+        """
+        SELECT u.id, u.username, u.email, u.name
+        FROM Users u
+        JOIN SharedTrips st ON st.shared_with_user_id = u.id
+        WHERE st.trip_id = ?
+        """,
+        (trip_id,)
+    )
+    shared_with = cursor.fetchall()
+    
+    return flask.jsonify({'success': True, 'shared_with': shared_with})
+
+
+@app.route('/api/trips/shared-with-me', methods=['GET'])
+def get_shared_trips():
+    """Get trips shared with me."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    connection = get_db()
+    cursor = connection.execute(
+        """
+        SELECT t.*, u.username as owner_username, u.name as owner_name
+        FROM SharedTrips st
+        JOIN Trips t ON st.trip_id = t.id
+        JOIN Users u ON t.user_id = u.id
+        WHERE st.shared_with_user_id = ?
+        ORDER BY st.created_at DESC
+        """,
+        (current_user['id'],)
+    )
+    shared_trips = cursor.fetchall()
+    
+    return flask.jsonify({'success': True, 'trips': shared_trips})
+
+
+# ============================================================================
+# UPDATE GET_ALL_TRIPS to include shared trips
+# ============================================================================
+
+@app.route('/api/trips/all', methods=['GET'])
+def get_all_my_trips():
+    """Get all trips (owned + shared with me)."""
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+    
+    connection = get_db()
+    
+    # Get owned trips
+    cursor = connection.execute(
+        "SELECT *, 'owner' as access_type FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
+        (current_user['id'],)
+    )
+    owned_trips = cursor.fetchall()
+    
+    # Get shared trips
+    cursor = connection.execute(
+        """
+        SELECT t.*, 'shared' as access_type, u.username as owner_username
+        FROM SharedTrips st
+        JOIN Trips t ON st.trip_id = t.id
+        JOIN Users u ON t.user_id = u.id
+        WHERE st.shared_with_user_id = ?
+        ORDER BY st.created_at DESC
+        """,
+        (current_user['id'],)
+    )
+    shared_trips = cursor.fetchall()
+    
+    # Combine and add metadata
+    all_trips = []
+    
+    for trip in owned_trips:
+        trip_dict = dict(trip)
+        
+        # Get cover photo
+        cursor = connection.execute(
+            """
+            SELECT p.* FROM Photos p
+            JOIN Locations l ON p.location_id = l.id
+            WHERE l.trip_id = ? AND p.is_cover_photo = 1
+            LIMIT 1
+            """,
+            (trip['id'],)
+        )
+        cover = cursor.fetchone()
+        trip_dict['cover_photo'] = dict(cover) if cover else None
+        
+        all_trips.append(trip_dict)
+    
+    for trip in shared_trips:
+        trip_dict = dict(trip)
+        
+        # Get cover photo
+        cursor = connection.execute(
+            """
+            SELECT p.* FROM Photos p
+            JOIN Locations l ON p.location_id = l.id
+            WHERE l.trip_id = ? AND p.is_cover_photo = 1
+            LIMIT 1
+            """,
+            (trip['id'],)
+        )
+        cover = cursor.fetchone()
+        trip_dict['cover_photo'] = dict(cover) if cover else None
+        
+        all_trips.append(trip_dict)
+    
+    return flask.jsonify({'success': True, 'trips': all_trips})
