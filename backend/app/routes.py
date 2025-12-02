@@ -8,14 +8,14 @@ from app import app
 from app.db import get_db
 from app.photo_service import photo_service
 
+# unused route
+# @app.route('/')
+# def get_index():
+#     connection = get_db()
+#     cur = connection.execute(...)
+#     context = cur.fetchall()
 
-@app.route('/')
-def get_index():
-    connection = get_db()
-    cur = connection.execute(...)
-    context = cur.fetchall()
-
-    return flask.render_template("index.html", **context)
+#     return flask.render_template("index.html", **context)
 
 @app.route('/api/photos/batch-upload', methods=['POST'])
 def batch_upload_photos():
