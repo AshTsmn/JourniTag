@@ -11,11 +11,11 @@ import { UploadModal } from '@/components/upload'
 import { usePhotos } from '@/hooks/usePhotos'
 import { locationAPI, tripAPI } from '@/services/api'
 import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
-import type { Photo, Location, Trip } from '@/types'
+import type { Photo, Location, Trip, UploadPhotoRequest } from '@/types'
 import './App.css'
 
 function App() {
-  const { photos, loading: photosLoading, setPhotos } = usePhotos()
+  const { photos, loading: photosLoading, refresh: refreshPhotos } = usePhotos()
   const [trips, setTrips] = useState<Trip[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [tripsLoading, setTripsLoading] = useState(true)
@@ -218,6 +218,9 @@ function App() {
   const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: UploadPhotoRequest[]) => {
   console.log('Upload completed:', { trip, locations: newLocations, pendingPhotos })
 
+  // Refresh photos to show newly uploaded ones on the map
+  refreshPhotos()
+
   if (trip) {
     setTrips(prevTrips => {
       // Only add if this trip doesn't already exist
@@ -243,6 +246,19 @@ function App() {
         setLocationPhotos(first.photos || [])
         setIsEditing(true)
         setSidebarView('location-detail')
+
+        // Calculate bounds for the new locations and focus map
+        const bounds = calculateTripBounds(newLocations)
+
+        if (bounds) {
+          setMapFocusBounds(bounds)
+        } else {
+          // Fallback to city coordinates if available
+          const cityCoords = getCityCoordinates(trip.city, trip.country)
+          if (cityCoords) {
+            setMapFocusBounds(createCityBounds(cityCoords))
+          }
+        }
       }
     }
   }
