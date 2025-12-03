@@ -28,4 +28,4 @@ var/
 
 # Temporary & Build Files
 tmp/
-output/
+output/uploads/photos/*.jpg
