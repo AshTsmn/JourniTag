@@ -59,7 +59,7 @@ export function LocationDetailEdit({
     <div className="flex flex-col h-full">
       {/* Header with Close Button */}
       <div className="p-4 border-b flex items-center gap-3">
-        <span className="text-sm font-medium text-muted-foreground">Edit Location</span>
+        <span className="text-sm font-medium text-muted-foreground">Review location details</span>
         <div className="flex-1" />
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="w-5 h-5" />

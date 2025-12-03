@@ -7,11 +7,13 @@ import { TripListView } from '@/components/sidebar/TripListView'
 import { TripDetailView } from '@/components/sidebar/TripDetailView'
 import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
-import { UploadModal } from '@/components/upload'
+import { BottomNav } from '@/components/navigation/BottomNav'
+import { FriendsView } from '@/components/sidebar/FriendsView'
+import { QuickUploadModal } from '@/components/upload/QuickUploadModal'
 import { usePhotos } from '@/hooks/usePhotos'
-import { locationAPI, tripAPI } from '@/services/api'
+import { locationAPI, tripAPI, photoAPI } from '@/services/api'
 import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
-import type { Photo, Location, Trip } from '@/types'
+import type { Photo, Location, Trip, UploadPhotoRequest } from '@/types'
 import './App.css'
 
 function App() {
@@ -215,8 +217,8 @@ function App() {
     console.log('Modal state set to:', true)
   }
 
-  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: UploadPhotoRequest[]) => {
-  console.log('Upload completed:', { trip, locations: newLocations, pendingPhotos })
+  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], _pendingPhotos?: UploadPhotoRequest[]) => {
+  console.log('Upload completed:', { trip, locations: newLocations })
 
   if (trip) {
     setTrips(prevTrips => {
@@ -239,13 +241,18 @@ function App() {
       const first = newLocations[0]
       if (first) {
         setSelectedTrip(trip)
-        setSelectedLocation({ ...first, pendingPhotoUploads: pendingPhotos }) // Add pending photos here
+        setSelectedLocation(first)
         setLocationPhotos(first.photos || [])
         setIsEditing(true)
         setSidebarView('location-detail')
       }
     }
   }
+  // Refresh map photos so newly uploaded images are pinned without a full reload
+  photoAPI
+    .getPhotos()
+    .then((latest) => setPhotos(latest))
+    .catch((err) => console.error('Error refreshing photos after upload:', err))
 
   setIsUploadModalOpen(false)
   }
@@ -274,6 +281,8 @@ function App() {
         {sidebarView === 'trip-list' && (
           <TripListView onBack={handleBackToHome} onTripClick={handleTripClick} trips={trips} />
         )}
+
+        {sidebarView === 'friends' && <FriendsView />}
 
         {sidebarView === 'trip-detail' && selectedTrip && (
           <TripDetailView
@@ -304,7 +313,7 @@ function App() {
       </Sidebar>
 
       {/* Map - offset by sidebar width */}
-      <div className="flex-1" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
+      <div className="flex-1 pb-16" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
         <MapView
           photos={photos}
           onPhotoClick={handlePhotoClick}
@@ -314,10 +323,20 @@ function App() {
       </div>
 
       {/* Upload Modal */}
-      <UploadModal
+      <QuickUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onUploadComplete={handleUploadComplete}
+      />
+
+      {/* Bottom Navigation */}
+      <BottomNav
+        active={sidebarView}
+        onChange={view => {
+          if (view === 'home') setSidebarView('home')
+          if (view === 'friends') setSidebarView('friends')
+          if (view === 'trip-list') setSidebarView('trip-list')
+        }}
       />
     </div>
   )
