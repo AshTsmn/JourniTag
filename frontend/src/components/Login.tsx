@@ -24,6 +24,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       const response = await fetch(`http://localhost:8000${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',  // <-- THIS LINE IS NEW - enables session cookies
         body: JSON.stringify(body)
       });
 

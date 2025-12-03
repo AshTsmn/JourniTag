@@ -27,7 +27,8 @@ case $1 in
     echo "+ Creating database..."
     sqlite3 "$DB_FILE" < sql/schema.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/data.sql > /dev/null
-    echo "+ Database created successfully."
+    sqlite3 "$DB_FILE" < sql/add_auth.sql > /dev/null
+    echo "+ Database created successfully with auth tables."
     ;;
 
 
@@ -42,11 +43,13 @@ case $1 in
     echo "+ Database reset."
     sqlite3 "$DB_FILE" < sql/schema.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/data.sql > /dev/null
-    echo "+ Database reset complete."
+    sqlite3 "$DB_FILE" < sql/add_auth.sql > /dev/null
+    echo "+ Database reset complete with auth tables."
     ;;
 
   *)
     usage
     exit 1
     ;;
+
 esac

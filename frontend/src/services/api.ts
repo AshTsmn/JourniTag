@@ -2,24 +2,20 @@ import { Trip, Location, Photo, CreateTripRequest, CreateLocationRequest, Upload
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
-// Helper function to get user_id (you'll need to implement proper auth later)
-const getCurrentUserId = (): number => {
-  // For now, return a hardcoded user ID
-  // TODO: Replace with actual authentication
-  return 1
-}
-
-
 export const tripAPI = {
   async getAllTrips(): Promise<Trip[]> {
-    const response = await fetch(`${API_BASE_URL}/trips`)
+    const response = await fetch(`${API_BASE_URL}/trips`, {
+      credentials: 'include'
+    })
     if (!response.ok) throw new Error('Failed to fetch trips')
     const data = await response.json()
     return data.trips || []
   },
 
   async getTripById(id: string): Promise<{ trip: Trip; locations: Location[]; photos: Photo[] }> {
-    const response = await fetch(`${API_BASE_URL}/trips/${id}`)
+    const response = await fetch(`${API_BASE_URL}/trips/${id}`, {
+      credentials: 'include'
+    })
     if (!response.ok) throw new Error('Failed to fetch trip')
     return response.json()
   },
@@ -28,10 +24,8 @@ export const tripAPI = {
     const response = await fetch(`${API_BASE_URL}/trips`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...trip,
-        user_id: getCurrentUserId(),
-      }),
+      credentials: 'include',
+      body: JSON.stringify(trip),
     })
     if (!response.ok) throw new Error('Failed to create trip')
     const data = await response.json()
@@ -42,6 +36,7 @@ export const tripAPI = {
     const response = await fetch(`${API_BASE_URL}/trips/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(trip),
     })
     if (!response.ok) throw new Error('Failed to update trip')
@@ -52,6 +47,7 @@ export const tripAPI = {
   async deleteTrip(id: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/trips/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     })
     if (!response.ok) throw new Error('Failed to delete trip')
   },
@@ -59,7 +55,9 @@ export const tripAPI = {
 
 export const locationAPI = {
   async getLocationById(id: string): Promise<{ location: Location; photos: Photo[] }> {
-    const response = await fetch(`${API_BASE_URL}/locations/${id}`)
+    const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
+      credentials: 'include'
+    })
     if (!response.ok) throw new Error('Failed to fetch location')
     return response.json()
   },
@@ -68,6 +66,7 @@ export const locationAPI = {
     const response = await fetch(`${API_BASE_URL}/locations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(location),
     })
     if (!response.ok) throw new Error('Failed to create location')
@@ -79,6 +78,7 @@ export const locationAPI = {
     const response = await fetch(`${API_BASE_URL}/locations/${location.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(location),
     })
     if (!response.ok) throw new Error('Failed to update location')
@@ -89,6 +89,7 @@ export const locationAPI = {
   async deleteLocation(id: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/locations/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     })
     if (!response.ok) throw new Error('Failed to delete location')
   },
@@ -96,7 +97,9 @@ export const locationAPI = {
 
 export const photoAPI = {
   async getPhotos(): Promise<Photo[]> {
-    const response = await fetch(`${API_BASE_URL}/photos?user_id=${getCurrentUserId()}`)
+    const response = await fetch(`${API_BASE_URL}/photos`, {
+      credentials: 'include'
+    })
     if (!response.ok) throw new Error('Failed to fetch photos')
     const data = await response.json()
     return data.photos || []
@@ -113,7 +116,6 @@ export const photoAPI = {
     // Create FormData for batch upload
     const formData = new FormData()
     formData.append('location_id', locationId.toString())
-    formData.append('user_id', getCurrentUserId().toString())
 
     // Add all files to the FormData
     requests.forEach((request) => {
@@ -122,13 +124,13 @@ export const photoAPI = {
 
     console.log('Uploading photos to Flask backend:', {
       location_id: locationId,
-      user_id: getCurrentUserId(),
       file_count: requests.length
     })
 
     // Send batch upload request to Flask
     const response = await fetch(`${API_BASE_URL}/photos/batch-upload`, {
       method: 'POST',
+      credentials: 'include',
       body: formData,
       // Don't set Content-Type header - let browser set it with boundary
     })
@@ -149,30 +151,26 @@ export const photoAPI = {
   },
 
   async getPhotosByLocation(locationId: string): Promise<Photo[]> {
-    const response = await fetch(`${API_BASE_URL}/photos/location/${locationId}`)
+    const response = await fetch(`${API_BASE_URL}/photos/location/${locationId}`, {
+      credentials: 'include'
+    })
     if (!response.ok) throw new Error('Failed to fetch photos')
     const data = await response.json()
     return data.photos || []
   },
 
   async deletePhoto(id: string): Promise<void> {
-    const formData = new FormData()
-    formData.append('user_id', getCurrentUserId().toString())
-    
     const response = await fetch(`${API_BASE_URL}/photos/${id}`, {
       method: 'DELETE',
-      body: formData,
+      credentials: 'include',
     })
     if (!response.ok) throw new Error('Failed to delete photo')
   },
 
   async setCoverPhoto(id: string): Promise<void> {
-    const formData = new FormData()
-    formData.append('user_id', getCurrentUserId().toString())
-    
     const response = await fetch(`${API_BASE_URL}/photos/${id}/set-cover`, {
       method: 'PATCH',
-      body: formData,
+      credentials: 'include',
     })
     if (!response.ok) throw new Error('Failed to set cover photo')
   },

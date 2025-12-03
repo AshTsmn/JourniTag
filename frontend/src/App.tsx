@@ -1,18 +1,71 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Login from '@/components/Login'
 import Friends from '@/components/Friends'
 import MainApp from '@/components/MainApp'
 
-function App() {
-  const [user, setUser] = useState(null)
-  const [showFriends, setShowFriends] = useState(false)
+interface User {
+  id: number
+  username: string
+  email: string
+  name: string
+}
 
-  // Not logged in - show login
+function App() {
+  const [user, setUser] = useState<User | null>(null)
+  const [showFriends, setShowFriends] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Check if user is already logged in (keeps you logged in after page refresh)
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/auth/check', {
+          credentials: 'include'
+        })
+        const data = await response.json()
+        
+        if (data.authenticated) {
+          setUser(data.user)
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    checkAuth()
+  }, [])
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:8000/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      setUser(null)
+      setShowFriends(false)
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
+  // Show loading spinner while checking if logged in
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    )
+  }
+
+  // Not logged in - show login page
   if (!user) {
     return <Login onLoginSuccess={setUser} />
   }
 
-  // Logged in - show friends or main app
+  // Logged in - show main app
   return (
     <div>
       {/* Top Nav Bar */}
@@ -29,13 +82,19 @@ function App() {
               {showFriends ? 'Back to Map' : 'Friends'}
             </button>
             <span className="text-sm text-gray-600">
-              {user.username}
+              {user.name || user.username}
             </span>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content - with top padding for nav */}
+      {/* Main Content */}
       <div className="pt-[60px] h-screen">
         {showFriends ? <Friends /> : <MainApp />}
       </div>

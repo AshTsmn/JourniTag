@@ -1,8 +1,5 @@
 """Application configuration."""
 import pathlib
-import flask
-
-app = flask.Flask(__name__)
 
 # Root of the application
 APPLICATION_ROOT = '/'
