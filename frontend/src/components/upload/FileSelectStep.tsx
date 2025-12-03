@@ -19,7 +19,7 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
     console.log('Files selected:', selectedFiles)
     const fileArray = Array.from(selectedFiles)
 
-    // Filter for supported image types
+    // Filter for supported image types (including HEIC/HEIF which the backend can read)
     const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/heic', 'image/heif']
     const imageFiles = fileArray.filter(file =>
       file.type.startsWith('image/') && supportedTypes.includes(file.type.toLowerCase())
@@ -37,24 +37,6 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
     setIsProcessing(true)
 
     try {
-      // Create previews (locally, for display)
-      const localPreviews = await Promise.all(imageFiles.map(async (file) => {
-        const preview = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            if (e.target?.result) {
-              resolve(e.target.result as string)
-            } else {
-              reject(new Error('Failed to read file'))
-            }
-          }
-          reader.onerror = () => reject(new Error('FileReader error'))
-          reader.readAsDataURL(file)
-        })
-
-        return { file, preview, coordinates: undefined, exifData: undefined }
-      }))
-
       // Send files to backend for EXIF extraction
       const formData = new FormData()
       imageFiles.forEach(file => {
@@ -78,15 +60,25 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
         throw new Error(data.error || 'Failed to extract EXIF data')
       }
 
-      // Merge backend EXIF data with local previews
-      const mergedPreviews = localPreviews.map((preview, index) => {
+      // Merge backend EXIF data and previews
+      const mergedPreviews = imageFiles.map((file, index) => {
         const exifResult = data.photos[index]
+        const coordinates = exifResult?.coordinates?.latitude && exifResult?.coordinates?.longitude
+          ? {
+              x: exifResult.coordinates.longitude,
+              y: exifResult.coordinates.latitude,
+            }
+          : undefined
+
+        // Prefer backend-generated JPEG preview (works for HEIC), fall back to object URL
+        const preview =
+          exifResult?.preview_data_url ||
+          URL.createObjectURL(file)
+
         return {
-          ...preview,
-          coordinates: exifResult?.coordinates?.latitude && exifResult?.coordinates?.longitude ? {
-            x: exifResult.coordinates.longitude,
-            y: exifResult.coordinates.latitude,
-          } : undefined,
+          file,
+          preview,
+          coordinates,
           exifData: exifResult,
         }
       })
@@ -187,7 +179,7 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
           {isProcessing ? 'Processing photos...' : 'Upload Photos'}
         </h3>
         <p className="text-gray-600 mb-4">
-          {isProcessing ? 
+          {isProcessing ?
             'Extracting GPS coordinates from your photos...' :
             'Drag and drop your photos here, or click to browse'
           }
