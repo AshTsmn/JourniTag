@@ -1,8 +1,9 @@
 /**
  * TripListView Component
- * Shows list of all trips similar to Recent Trips on home
+ * Shows list of all trips with a toggle between "My Trips" and "Shared Trips"
  */
 
+import { useState } from 'react'
 import { ArrowLeft, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +19,24 @@ interface TripListViewProps {
 }
 
 export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) {
+  const [activeTab, setActiveTab] = useState<'my' | 'shared'>('my')
+  const [search, setSearch] = useState('')
+
+  const normalizedSearch = search.trim().toLowerCase()
+
+  // For now, all loaded trips are treated as "My trips".
+  // When shared trips are implemented, this is where we'll split by ownership.
+  const tripsForActiveTab =
+    activeTab === 'my'
+      ? (trips || [])
+      : [] // placeholder: no shared trips yet
+
+  const visibleTrips = tripsForActiveTab.filter((trip) => {
+    if (!normalizedSearch) return true
+    const haystack = `${trip.title} ${trip.city} ${trip.country}`.toLowerCase()
+    return haystack.includes(normalizedSearch)
+  })
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -26,7 +45,35 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-bold flex-1">My Trips</h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold mb-2">Trips</h1>
+            <div className="inline-flex items-center rounded-full bg-muted p-1 text-xs font-medium">
+              <button
+                type="button"
+                className={cn(
+                  "px-3 py-1 rounded-full transition-colors",
+                  activeTab === 'my'
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground"
+                )}
+                onClick={() => setActiveTab('my')}
+              >
+                My trips
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "px-3 py-1 rounded-full transition-colors",
+                  activeTab === 'shared'
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground"
+                )}
+                onClick={() => setActiveTab('shared')}
+              >
+                Shared trips
+              </button>
+            </div>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -34,6 +81,8 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
             type="search"
             placeholder="Search trips..."
             className="pl-9 bg-muted/50"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </div>
@@ -41,10 +90,14 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
       {/* Trip List - Scrollable */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-3">
-          {trips && trips.length > 0 ? (
-            trips.map((trip) => (
+          {visibleTrips && visibleTrips.length > 0 ? (
+            visibleTrips.map((trip) => (
               <TripCard key={trip.id} trip={trip} onClick={() => onTripClick(trip)} />
             ))
+          ) : activeTab === 'shared' ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No shared trips yet. Trips that friends share with you will appear here.
+            </p>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-8">
               No trips yet. Upload some photos to get started!

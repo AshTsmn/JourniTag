@@ -96,29 +96,6 @@ export function SidebarHome({ onTripClick, onUploadClick, onMyTripsClick, trips 
           </div>
         </div>
       </div>
-
-      {/* Bottom Navigation */}
-      <div className="border-t p-4">
-        <div className="flex items-center justify-around">
-          <Button variant="ghost" size="sm" className="flex-col h-auto py-2 gap-1">
-            <Home className="w-5 h-5 text-primary" />
-            <span className="text-xs font-medium text-primary">Home</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-col h-auto py-2 gap-1"
-            onClick={onMyTripsClick}
-          >
-            <Map className="w-5 h-5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">My Trips</span>
-          </Button>
-          <Button variant="ghost" size="sm" className="flex-col h-auto py-2 gap-1">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Settings</span>
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }

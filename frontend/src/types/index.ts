@@ -46,6 +46,7 @@ export interface Location {
   created_at: string
   // Additional fields
   photos?: Photo[] // Photos at this location
+  pendingPhotoUploads?: UploadPhotoRequest[] // Pending photos during upload flow
 }
 
 export interface Photo {

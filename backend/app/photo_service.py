@@ -6,7 +6,7 @@ from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import hashlib
 from pathlib import Path
-
+from app.geocoding import geocoding_service
 
 class PhotoService:
     def __init__(self, upload_dir: str = "uploads/photos"):
@@ -216,6 +216,7 @@ class PhotoService:
         # Return relative path as URL
         return f"/uploads/photos/{new_filename}", saved_ext
     
+ 
     def find_or_create_location(
         self, 
         connection,
@@ -224,7 +225,7 @@ class PhotoService:
         longitude: float,
         address: Optional[str] = None
     ) -> dict:
-        """Find existing location nearby or create a new one."""
+        """Find existing location nearby or create a new one with geocoded name/address."""
         # Search for locations within ~50 meters (roughly 0.0005 degrees)
         threshold = 0.0005
         
@@ -237,13 +238,30 @@ class PhotoService:
             LIMIT 1
             """,
             (trip_id, 
-             longitude - threshold, longitude + threshold,
-             latitude - threshold, latitude + threshold)
+            longitude - threshold, longitude + threshold,
+            latitude - threshold, latitude + threshold)
         )
         existing_location = cursor.fetchone()
         
         if existing_location:
+            print(f"✅ Found existing location: {existing_location['name']}")
             return existing_location
+        
+        # No existing location found - create a new one with geocoded info
+        print(f"🆕 Creating new location for ({latitude:.6f}, {longitude:.6f})")
+        
+        # Get location info from Nominatim
+        location_info = geocoding_service.reverse_geocode(latitude, longitude)
+        
+        if location_info:
+            name = location_info['name']
+            geocoded_address = location_info['address']
+            print(f"📍 Geocoded: {name} - {geocoded_address}")
+        else:
+            # Fallback if geocoding fails
+            name = f"Location at ({latitude:.4f}, {longitude:.4f})"
+            geocoded_address = address or "Address not available"
+            print(f"⚠️ Geocoding failed, using fallback name")
         
         # Create new location
         created_at = int(datetime.now().timestamp())
@@ -253,9 +271,7 @@ class PhotoService:
             (trip_id, x, y, name, address, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (trip_id, longitude, latitude, 
-             f"Location at ({latitude:.4f}, {longitude:.4f})",
-             address, created_at)
+            (trip_id, longitude, latitude, name, geocoded_address, created_at)
         )
         
         location_id = cursor.lastrowid
@@ -265,8 +281,12 @@ class PhotoService:
             "SELECT * FROM Locations WHERE id = ?", 
             (location_id,)
         )
-        return cursor.fetchone()
-    
+        new_location = cursor.fetchone()
+        
+        print(f"✅ Created location: {name} (ID: {location_id})")
+        return new_location
+
+
     def batch_upload_photos(
         self,
         connection,

@@ -6,7 +6,7 @@
 import { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-export type SidebarView = 'home' | 'trip-list' | 'trip-detail' | 'location-detail'
+export type SidebarView = 'home' | 'trip-list' | 'trip-detail' | 'location-detail' | 'friends'
 
 interface SidebarProps {
   view: SidebarView
@@ -20,7 +20,7 @@ export function Sidebar({ view, className, children }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 h-screen bg-background border-r shadow-lg z-[1000] transition-all duration-300 flex flex-col',
+        'fixed left-0 top-0 h-screen bg-background border-r shadow-lg z-[1000] transition-all duration-300 flex flex-col pb-16',
         isExpanded ? 'w-[400px]' : 'w-[360px]',
         className
       )}
