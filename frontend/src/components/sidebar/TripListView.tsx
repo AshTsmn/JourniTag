@@ -24,15 +24,18 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
 
   const normalizedSearch = search.trim().toLowerCase()
 
-  const visibleTrips =
-    (trips || [])
-      // TODO: when shared trips are implemented, filter based on ownership vs. shared
-      .filter(() => activeTab === 'my')
-      .filter((trip) => {
-        if (!normalizedSearch) return true
-        const haystack = `${trip.title} ${trip.city} ${trip.country}`.toLowerCase()
-        return haystack.includes(normalizedSearch)
-      })
+  // For now, all loaded trips are treated as "My trips".
+  // When shared trips are implemented, this is where we'll split by ownership.
+  const tripsForActiveTab =
+    activeTab === 'my'
+      ? (trips || [])
+      : [] // placeholder: no shared trips yet
+
+  const visibleTrips = tripsForActiveTab.filter((trip) => {
+    if (!normalizedSearch) return true
+    const haystack = `${trip.title} ${trip.city} ${trip.country}`.toLowerCase()
+    return haystack.includes(normalizedSearch)
+  })
 
   return (
     <div className="flex flex-col h-full">
