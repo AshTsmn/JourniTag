@@ -13,6 +13,14 @@ from app.photo_service import photo_service
 def get_index():
     """Simple health endpoint for the backend root."""
     return flask.jsonify({"status": "ok"})
+# unused route
+# @app.route('/')
+# def get_index():
+#     connection = get_db()
+#     cur = connection.execute(...)
+#     context = cur.fetchall()
+
+#     return flask.render_template("index.html", **context)
 
 @app.route('/api/photos/batch-upload', methods=['POST'])
 def batch_upload_photos():

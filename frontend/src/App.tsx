@@ -17,7 +17,7 @@ import type { Photo, Location, Trip, UploadPhotoRequest } from '@/types'
 import './App.css'
 
 function App() {
-  const { photos, loading: photosLoading, setPhotos } = usePhotos()
+  const { photos, loading: photosLoading, refresh: refreshPhotos } = usePhotos()
   const [trips, setTrips] = useState<Trip[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [tripsLoading, setTripsLoading] = useState(true)
@@ -220,6 +220,9 @@ function App() {
   const handleUploadComplete = (trip?: Trip, newLocations?: Location[], _pendingPhotos?: UploadPhotoRequest[]) => {
   console.log('Upload completed:', { trip, locations: newLocations })
 
+  // Refresh photos to show newly uploaded ones on the map
+  refreshPhotos()
+
   if (trip) {
     setTrips(prevTrips => {
       // Only add if this trip doesn't already exist
@@ -245,6 +248,19 @@ function App() {
         setLocationPhotos(first.photos || [])
         setIsEditing(true)
         setSidebarView('location-detail')
+
+        // Calculate bounds for the new locations and focus map
+        const bounds = calculateTripBounds(newLocations)
+
+        if (bounds) {
+          setMapFocusBounds(bounds)
+        } else {
+          // Fallback to city coordinates if available
+          const cityCoords = getCityCoordinates(trip.city, trip.country)
+          if (cityCoords) {
+            setMapFocusBounds(createCityBounds(cityCoords))
+          }
+        }
       }
     }
   }
