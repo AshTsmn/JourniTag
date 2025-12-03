@@ -143,9 +143,10 @@
 }
 
 .photo-marker-img {
-  width: 100%;
+  width: 100% !important;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 /* Cluster Marker Styles */
