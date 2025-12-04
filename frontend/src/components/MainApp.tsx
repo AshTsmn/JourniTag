@@ -9,11 +9,11 @@ import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { BottomNav } from '@/components/navigation/BottomNav'
 import { FriendsView } from '@/components/sidebar/FriendsView'
-import { UploadModal } from '@/components/upload'
+import { QuickUploadModal } from '@/components/upload/QuickUploadModal'
 import { usePhotos } from '@/hooks/usePhotos'
 import { locationAPI, tripAPI, photoAPI } from '@/services/api'
 import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
-import type { Photo, Location, Trip } from '@/types'
+import type { Photo, Location, Trip, UploadPhotoRequest } from '@/types'
 
 export default function MainApp() {
   const { photos, loading: photosLoading, setPhotos, refresh: refreshPhotos } = usePhotos()
@@ -216,61 +216,60 @@ export default function MainApp() {
     console.log('Modal state set to:', true)
   }
 
-  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: any[]) => {
-    console.log('Upload completed:', { trip, locations: newLocations, pendingPhotos })
+  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], _pendingPhotos?: UploadPhotoRequest[]) => {
+  console.log('Upload completed:', { trip, locations: newLocations })
 
-    // Refresh photos to show newly uploaded ones on the map
-    refreshPhotos()
+  // Refresh photos to show newly uploaded ones on the map
+  refreshPhotos()
 
+  if (trip) {
+    setTrips(prevTrips => {
+      // Only add if this trip doesn't already exist
+      const exists = prevTrips.some(t => t.id === trip.id)
+      if (exists) {
+        console.log('Trip already exists, not adding duplicate')
+        return prevTrips
+      }
+      console.log('Adding new trip:', trip)
+      return [...prevTrips, trip]
+    })
+  }
+
+  if (newLocations && newLocations.length > 0) {
+    setLocations(prev => [...prev, ...newLocations])
+
+    // Navigate to edit the first location
     if (trip) {
-      setTrips(prevTrips => {
-        // Only add if this trip doesn't already exist
-        const exists = prevTrips.some(t => t.id === trip.id)
-        if (exists) {
-          console.log('Trip already exists, not adding duplicate')
-          return prevTrips
-        }
-        console.log('Adding new trip:', trip)
-        return [...prevTrips, trip]
-      })
-    }
+      const first = newLocations[0]
+      if (first) {
+        setSelectedTrip(trip)
+        setSelectedLocation(first)
+        setLocationPhotos(first.photos || [])
+        setIsEditing(true)
+        setSidebarView('location-detail')
 
-    if (newLocations && newLocations.length > 0) {
-      setLocations(prev => [...prev, ...newLocations])
+        // Calculate bounds for the new locations and focus map
+        const bounds = calculateTripBounds(newLocations)
 
-      // Navigate to edit the first location
-      if (trip) {
-        const first = newLocations[0]
-        if (first) {
-          setSelectedTrip(trip)
-          setSelectedLocation({ ...first, pendingPhotoUploads: pendingPhotos }) // Add pending photos here
-          setLocationPhotos(first.photos || [])
-          setIsEditing(true)
-          setSidebarView('location-detail')
-
-          // Calculate bounds for the new locations and focus map
-          const bounds = calculateTripBounds(newLocations)
-
-          if (bounds) {
-            setMapFocusBounds(bounds)
-          } else {
-            // Fallback to city coordinates if available
-            const cityCoords = getCityCoordinates(trip.city, trip.country)
-            if (cityCoords) {
-              setMapFocusBounds(createCityBounds(cityCoords))
-            }
+        if (bounds) {
+          setMapFocusBounds(bounds)
+        } else {
+          // Fallback to city coordinates if available
+          const cityCoords = getCityCoordinates(trip.city, trip.country)
+          if (cityCoords) {
+            setMapFocusBounds(createCityBounds(cityCoords))
           }
         }
       }
     }
+  }
+  // Refresh map photos so newly uploaded images are pinned without a full reload
+  photoAPI
+    .getPhotos()
+    .then((latest) => setPhotos(latest))
+    .catch((err) => console.error('Error refreshing photos after upload:', err))
 
-    // Refresh map photos so newly uploaded images are pinned without a full reload
-    photoAPI
-      .getPhotos()
-      .then((latest) => setPhotos(latest))
-      .catch((err) => console.error('Error refreshing photos after upload:', err))
-
-    setIsUploadModalOpen(false)
+  setIsUploadModalOpen(false)
   }
 
   if (loading) {
@@ -340,7 +339,7 @@ export default function MainApp() {
       </div>
 
       {/* Upload Modal */}
-      <UploadModal
+      <QuickUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onUploadComplete={handleUploadComplete}
