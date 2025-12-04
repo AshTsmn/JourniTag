@@ -9,13 +9,19 @@ import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
 import { BottomNav } from '@/components/navigation/BottomNav'
 import { FriendsView } from '@/components/sidebar/FriendsView'
-import { UploadModal } from '@/components/upload'
+import { QuickUploadModal } from '@/components/upload/QuickUploadModal'
 import { usePhotos } from '@/hooks/usePhotos'
 import { locationAPI, tripAPI, photoAPI } from '@/services/api'
 import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
-import type { Photo, Location, Trip } from '@/types'
+import type { Photo, Location, Trip, UploadPhotoRequest } from '@/types'
 
-export default function MainApp() {
+interface MainAppProps {
+  currentUser: {
+    id: number | string
+  }
+}
+
+export default function MainApp({ currentUser }: MainAppProps) {
   const { photos, loading: photosLoading, setPhotos, refresh: refreshPhotos } = usePhotos()
   const [trips, setTrips] = useState<Trip[]>([])
   const [locations, setLocations] = useState<Location[]>([])
@@ -27,6 +33,7 @@ export default function MainApp() {
   const [locationPhotos, setLocationPhotos] = useState<Photo[]>([])
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [mapFocusBounds, setMapFocusBounds] = useState<L.LatLngBounds | null>(null)
+  const [sharedOwnerNameForView, setSharedOwnerNameForView] = useState<string | undefined>(undefined)
 
   const loading = photosLoading || tripsLoading
 
@@ -49,6 +56,13 @@ export default function MainApp() {
 
   const handlePhotoClick = async (photo: Photo) => {
     console.log('Photo clicked:', photo)
+
+    // Remember owner for shared photos so we can show in the location view header
+    if (photo.access_type === 'shared') {
+      setSharedOwnerNameForView(photo.owner_name || photo.owner_username)
+    } else {
+      setSharedOwnerNameForView(undefined)
+    }
 
     // Get location with all photos from API
     if (photo.location_id) {
@@ -216,24 +230,18 @@ export default function MainApp() {
     console.log('Modal state set to:', true)
   }
 
-  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: any[]) => {
+  const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: UploadPhotoRequest[]) => {
     console.log('Upload completed:', { trip, locations: newLocations, pendingPhotos })
 
     // Refresh photos to show newly uploaded ones on the map
     refreshPhotos()
 
-    if (trip) {
-      setTrips(prevTrips => {
-        // Only add if this trip doesn't already exist
-        const exists = prevTrips.some(t => t.id === trip.id)
-        if (exists) {
-          console.log('Trip already exists, not adding duplicate')
-          return prevTrips
-        }
-        console.log('Adding new trip:', trip)
-        return [...prevTrips, trip]
-      })
-    }
+    // Always refresh trips from backend so ratings & photo counts reflect
+    // the latest averages across all locations (including newly added ones).
+    tripAPI
+      .getAllTrips()
+      .then((freshTrips) => setTrips(freshTrips))
+      .catch((error) => console.error('Error refreshing trips after upload:', error))
 
     if (newLocations && newLocations.length > 0) {
       setLocations(prev => [...prev, ...newLocations])
@@ -324,6 +332,16 @@ export default function MainApp() {
               photos={locationPhotos}
               onBack={selectedTrip ? handleBackToTripDetail : handleBackToHome}
               onEdit={handleEditClick}
+              canEdit={
+                !selectedTrip
+                  ? !sharedOwnerNameForView
+                  : String(selectedTrip.user_id) === String(currentUser.id)
+              }
+              sharedOwnerName={
+                selectedTrip && selectedTrip.access_type === 'shared'
+                  ? (selectedTrip as any).owner_name || (selectedTrip as any).owner_username
+                  : sharedOwnerNameForView
+              }
             />
           )
         )}
@@ -340,7 +358,7 @@ export default function MainApp() {
       </div>
 
       {/* Upload Modal */}
-      <UploadModal
+      <QuickUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onUploadComplete={handleUploadComplete}

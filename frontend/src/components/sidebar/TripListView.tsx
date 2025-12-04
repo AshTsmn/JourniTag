@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Search, User } from 'lucide-react'
+import { ArrowLeft, Search, User, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Trip } from '@/types'
@@ -124,9 +124,9 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
             </p>
           ) : visibleTrips && visibleTrips.length > 0 ? (
             visibleTrips.map((trip) => (
-              <TripCard 
-                key={trip.id} 
-                trip={trip} 
+              <TripCard
+                key={trip.id}
+                trip={trip}
                 onClick={() => onTripClick(trip)}
                 isShared={activeTab === 'shared'}
               />
@@ -213,23 +213,28 @@ function TripCard({ trip, onClick, isShared }: TripCardProps) {
               {formatDateRange(trip.start_date, trip.end_date)}
             </p>
           </div>
-          {typeof trip.rating === 'number' && trip.rating > 0 && (
-            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded">
-              <span className="text-yellow-400">⭐</span>
-              <span className="text-white font-semibold">{trip.rating.toFixed(1)}</span>
-            </div>
-          )}
         </div>
-        
-        {/* Shared by indicator */}
+
+        {/* Shared by indicator (top-right) */}
         {isShared && trip.owner_username && (
-          <div className="absolute top-2 right-3 flex items-center gap-1 bg-blue-500/80 px-2 py-1 rounded text-xs text-white">
-            <User className="w-3 h-3" />
-            <span>{trip.owner_name || trip.owner_username}</span>
+          <div className="absolute top-2 right-3 flex items-center gap-1 bg-white/90 text-slate-900 px-2.5 py-1 rounded-full text-xs shadow-sm">
+            <User className="w-3 h-3 text-slate-600" />
+            <span className="font-semibold">
+              {trip.owner_name || trip.owner_username}
+            </span>
           </div>
         )}
-        
-        <div className="absolute bottom-0 p-3 text-sm text-white italic">
+
+        {/* Bottom overlay: rating pill (bottom-right) + quote */}
+        {typeof trip.rating === 'number' && trip.rating > 0 && (
+          <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/50 px-3 py-1.5 rounded">
+            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+            <span className="text-white font-semibold text-sm">
+              {trip.rating.toFixed(1)}
+            </span>
+          </div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 p-3 text-sm text-white italic">
           {getQuote(trip.title)}
         </div>
       </div>

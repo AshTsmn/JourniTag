@@ -16,6 +16,15 @@ interface Trip {
   country?: string
 }
 
+interface FriendRequest {
+  id: number
+  user_id: number
+  username: string
+  email: string
+  name: string
+  profile_photo_url?: string
+}
+
 type Tab = 'friends' | 'add' | 'share'
 
 export function FriendsView() {
@@ -28,7 +37,9 @@ export function FriendsView() {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [sharedWith, setSharedWith] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([])
+  const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([])
+
   // Confirmation dialog state
   const [confirmAction, setConfirmAction] = useState<{
     type: 'add' | 'remove' | 'share'
@@ -39,8 +50,17 @@ export function FriendsView() {
   // Fetch friends list
   useEffect(() => {
     fetchFriends()
+    fetchFriendRequests()
     fetchTrips()
   }, [])
+
+  // Refresh friends & requests whenever user switches back to "My Friends" tab
+  useEffect(() => {
+    if (activeTab === 'friends') {
+      fetchFriends()
+      fetchFriendRequests()
+    }
+  }, [activeTab])
 
   const fetchFriends = async () => {
     try {
@@ -55,6 +75,21 @@ export function FriendsView() {
       console.error('Error fetching friends:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchFriendRequests = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/friends/requests', {
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setIncomingRequests(data.incoming || [])
+        setOutgoingRequests(data.outgoing || [])
+      }
+    } catch (error) {
+      console.error('Error fetching friend requests:', error)
     }
   }
 
@@ -96,9 +131,9 @@ export function FriendsView() {
     }
   }
 
-  const addFriend = async (user: User) => {
+  const sendFriendRequest = async (user: User) => {
     try {
-      const response = await fetch('http://localhost:8000/api/friends/add', {
+      const response = await fetch('http://localhost:8000/api/friends/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -106,8 +141,14 @@ export function FriendsView() {
       })
       const data = await response.json()
       if (data.success) {
-        setFriends([...friends, user])
-        setSearchResults(searchResults.filter(u => u.id !== user.id))
+        if (data.accepted) {
+          // Request auto-accepted (other user had already requested us)
+          setFriends([...friends, user])
+          setSearchResults(searchResults.filter(u => u.id !== user.id))
+        } else {
+          // Pending request
+          await fetchFriendRequests()
+        }
         setConfirmAction(null)
       }
     } catch (error) {
@@ -128,6 +169,46 @@ export function FriendsView() {
       }
     } catch (error) {
       console.error('Error removing friend:', error)
+    }
+  }
+
+  const acceptRequest = async (request: FriendRequest) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/friends/requests/${request.id}/accept`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success) {
+        // Add to friends and remove from incoming requests
+        const newFriend: User = data.friend || {
+          id: request.user_id,
+          username: request.username,
+          email: request.email,
+          name: request.name,
+          profile_photo_url: request.profile_photo_url
+        }
+        setFriends(prev => [...prev, newFriend])
+        setIncomingRequests(prev => prev.filter(r => r.id !== request.id))
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error)
+    }
+  }
+
+  const deleteRequest = async (request: FriendRequest) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/friends/requests/${request.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setIncomingRequests(prev => prev.filter(r => r.id !== request.id))
+        setOutgoingRequests(prev => prev.filter(r => r.id !== request.id))
+      }
+    } catch (error) {
+      console.error('Error deleting friend request:', error)
     }
   }
 
@@ -180,8 +261,8 @@ export function FriendsView() {
 
     if (confirmAction.type === 'add' && confirmAction.user) {
       title = 'Add Friend'
-      message = `Send friend request to ${confirmAction.user.name || confirmAction.user.username}? They will be added to your friends list.`
-      onConfirm = () => addFriend(confirmAction.user!)
+      message = `Send friend request to ${confirmAction.user.name || confirmAction.user.username}?`
+      onConfirm = () => sendFriendRequest(confirmAction.user!)
     } else if (confirmAction.type === 'remove' && confirmAction.user) {
       title = 'Remove Friend'
       message = `Remove ${confirmAction.user.name || confirmAction.user.username} from your friends? You can add them again later.`
@@ -262,43 +343,87 @@ export function FriendsView() {
         <div>
           {loading ? (
             <p className="text-gray-500 text-center py-8">Loading...</p>
-          ) : friends.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500">No friends yet</p>
-              <button
-                onClick={() => setActiveTab('add')}
-                className="mt-2 text-blue-600 hover:underline text-sm"
-              >
-                Add your first friend
-              </button>
-            </div>
           ) : (
-            <div className="space-y-2">
-              {friends.map(friend => (
-                <div
-                  key={friend.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-medium">
-                      {(friend.name || friend.username).charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium">{friend.name || friend.username}</p>
-                      <p className="text-sm text-gray-500">@{friend.username}</p>
-                    </div>
+            <>
+              {/* Incoming requests (always show if present, even with zero friends) */}
+              {incomingRequests.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Friend requests</p>
+                  <div className="space-y-2">
+                    {incomingRequests.map(request => (
+                      <div
+                        key={request.id}
+                        className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-medium">
+                            {(request.name || request.username).charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium">{request.name || request.username}</p>
+                            <p className="text-sm text-gray-500">@{request.username}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => acceptRequest(request)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => deleteRequest(request)}
+                            className="px-3 py-1 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              )}
+
+              {/* Friends list or empty state */}
+              {friends.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500">No friends yet</p>
                   <button
-                    onClick={() => setConfirmAction({ type: 'remove', user: friend })}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Remove friend"
+                    onClick={() => setActiveTab('add')}
+                    className="mt-2 text-blue-600 hover:underline text-sm"
                   >
-                    <X className="h-4 w-4" />
+                    Add your first friend
                   </button>
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="space-y-2">
+                  {friends.map(friend => (
+                    <div
+                      key={friend.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-medium">
+                          {(friend.name || friend.username).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium">{friend.name || friend.username}</p>
+                          <p className="text-sm text-gray-500">@{friend.username}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setConfirmAction({ type: 'remove', user: friend })}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Remove friend"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -330,29 +455,56 @@ export function FriendsView() {
             <p className="text-gray-500 text-center py-8">No users found</p>
           ) : (
             <div className="space-y-2">
-              {searchResults.map(user => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-medium">
-                      {(user.name || user.username).charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium">{user.name || user.username}</p>
-                      <p className="text-sm text-gray-500">@{user.username}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setConfirmAction({ type: 'add', user })}
-                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                    title="Add friend"
+              {searchResults.map(user => {
+                const isFriend = friends.some(f => f.id === user.id)
+                const outgoing = outgoingRequests.find(r => r.user_id === user.id)
+                const incoming = incomingRequests.find(r => r.user_id === user.id)
+
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
-                    <UserPlus className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-medium">
+                        {(user.name || user.username).charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium">{user.name || user.username}</p>
+                        <p className="text-sm text-gray-500">@{user.username}</p>
+                      </div>
+                    </div>
+
+                    {isFriend ? (
+                      <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                        Friends
+                      </span>
+                    ) : outgoing ? (
+                      <button
+                        onClick={() => deleteRequest(outgoing)}
+                        className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                      >
+                        Request pending
+                      </button>
+                    ) : incoming ? (
+                      <button
+                        onClick={() => acceptRequest(incoming)}
+                        className="px-3 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        Accept request
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmAction({ type: 'add', user })}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Add friend"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

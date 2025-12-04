@@ -48,18 +48,25 @@ export function PhotoMarker({ photo, onClick }: PhotoMarkerProps) {
       }}
     >
       <Popup>
-        <div className="min-w-[200px]">
+        <div className="min-w-[220px]">
           <img
             src={photoUrl}
             alt={photo.original_filename}
             className="w-full h-32 object-cover rounded-md mb-2"
           />
-          <p className="text-sm font-medium">
-            {photo.location?.name || ''}
-          </p>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <p className="text-sm font-medium truncate">
+              {photo.location?.name || photo.location_name || ''}
+            </p>
+            {photo.access_type === 'shared' && (photo.owner_username || photo.owner_name) && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-slate-900/80 text-white text-[10px] whitespace-nowrap">
+                {photo.owner_username || photo.owner_name}
+              </span>
+            )}
+          </div>
           {photo.taken_at && (
             <p className="text-xs text-muted-foreground">
-              {new Date(photo.taken_at * 1000).toLocaleDateString()}
+              {new Date(Number(photo.taken_at) * 1000).toLocaleDateString()}
             </p>
           )}
         </div>

@@ -3,7 +3,7 @@
  * Read-only view of location details
  */
 
-import { ArrowLeft, Briefcase, Share2, Pencil, MapPin, Clock } from 'lucide-react'
+import { ArrowLeft, Briefcase, Share2, Pencil, MapPin, Clock, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
@@ -17,6 +17,8 @@ interface LocationDetailViewProps {
   photos: Photo[]
   onBack: () => void
   onEdit: () => void
+  canEdit?: boolean
+  sharedOwnerName?: string
 }
 
 export function LocationDetailView({
@@ -24,6 +26,8 @@ export function LocationDetailView({
   photos,
   onBack,
   onEdit,
+  canEdit = true,
+  sharedOwnerName,
 }: LocationDetailViewProps) {
   const parseNotes = (notes?: string) => {
     if (!notes) return []
@@ -71,11 +75,19 @@ export function LocationDetailView({
   return (
     <div className="flex flex-col h-full">
       {/* Header with Back Button */}
-      <div className="p-4 border-b flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1" />
+      <div className="p-4 border-b flex items-center gap-3 justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </div>
+        {!canEdit && sharedOwnerName && (
+          <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1 text-xs text-slate-800 shadow-sm">
+            <User className="w-3 h-3 text-slate-500" />
+            <span className="font-medium">{sharedOwnerName}</span>
+            <span className="text-slate-400">shared this</span>
+          </div>
+        )}
       </div>
 
       {/* Scrollable Content */}
@@ -104,12 +116,14 @@ export function LocationDetailView({
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold">{location.name}</h1>
-            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-              <Avatar className="w-6 h-6">
-                <AvatarFallback>You</AvatarFallback>
-              </Avatar>
-              <span>Created by You</span>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                <Avatar className="w-6 h-6">
+                  <AvatarFallback>You</AvatarFallback>
+                </Avatar>
+                <span>Created by You</span>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -131,9 +145,11 @@ export function LocationDetailView({
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-semibold">Author notes</h3>
               <div className="flex-1" />
-              <Button variant="ghost" size="icon" onClick={onEdit}>
-                <Pencil className="w-4 h-4" />
-              </Button>
+              {canEdit && (
+                <Button variant="ghost" size="icon" onClick={onEdit}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              )}
             </div>
 
             {/* Ratings */}

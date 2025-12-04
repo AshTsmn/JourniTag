@@ -21,7 +21,7 @@ function App() {
           credentials: 'include'
         })
         const data = await response.json()
-        
+
         if (data.authenticated) {
           setUser(data.user)
         }
@@ -31,7 +31,7 @@ function App() {
         setLoading(false)
       }
     }
-    
+
     checkAuth()
   }, [])
 
@@ -81,7 +81,7 @@ function App() {
       </div>
 
       {/* Main App - has its own BottomNav with Home, Friends, Trips */}
-      <MainApp />
+      <MainApp currentUser={user} />
     </div>
   )
 }

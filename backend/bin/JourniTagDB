@@ -28,7 +28,8 @@ case $1 in
     sqlite3 "$DB_FILE" < sql/schema.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/data.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/add_auth.sql > /dev/null
-    echo "+ Database created successfully with auth tables."
+    sqlite3 "$DB_FILE" < sql/add_friend_requests.sql > /dev/null
+    echo "+ Database created successfully with auth & friend request tables."
     ;;
 
 
@@ -44,7 +45,8 @@ case $1 in
     sqlite3 "$DB_FILE" < sql/schema.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/data.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/add_auth.sql > /dev/null
-    echo "+ Database reset complete with auth tables."
+    sqlite3 "$DB_FILE" < sql/add_friend_requests.sql > /dev/null
+    echo "+ Database reset complete with auth & friend request tables."
     ;;
 
   *)

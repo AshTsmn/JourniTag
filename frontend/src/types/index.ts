@@ -61,6 +61,12 @@ export interface Photo {
   is_cover_photo: boolean
   // Additional fields
   location?: Location
+  location_name?: string
+  trip_id?: string
+  trip_owner_id?: string
+  owner_username?: string
+  owner_name?: string
+  access_type?: 'owner' | 'shared'
 }
 
 export interface SharedTrip {
