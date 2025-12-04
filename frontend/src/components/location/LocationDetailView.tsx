@@ -31,25 +31,7 @@ export function LocationDetailView({
   canEdit = true,
   sharedOwnerName,
 }: LocationDetailViewProps) {
-<<<<<<< HEAD
   const creatorName = sharedOwnerName || 'You'
-=======
-  // Check if user can edit (owner or has edit access)
-  const canEdit = trip && (trip.access_level === 'owner' || trip.access_level === 'edit')
-
-  // Determine who created this location
-  // Show owner name if this is a shared trip (user is not the owner)
-  // console.log('LocationDetailView - trip data:', {
-  //   access_level: trip?.access_level,
-  //   owner_name: trip?.owner_name,
-  //   owner_username: trip?.owner_username,
-  //   access_type: trip?.access_type
-  // })
-
-  const creatorName = trip?.access_level === 'read' || trip?.access_level === 'edit'
-    ? (trip.owner_name || trip.owner_username || 'Unknown')
-    : 'You'
->>>>>>> ec308da (fix created by [owner])
   const parseNotes = (notes?: string) => {
     if (!notes) return []
 
