@@ -3,14 +3,20 @@
  * Shows list of all trips with a toggle between "My Trips" and "Shared Trips"
  */
 
-import { useState } from 'react'
-import { ArrowLeft, Search } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Search, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Trip } from '@/types'
 import { cn } from '@/lib/utils'
 
 const API_BASE_URL = 'http://localhost:8000'
+
+interface SharedTrip extends Trip {
+  owner_username?: string
+  owner_name?: string
+  access_type?: 'owner' | 'shared'
+}
 
 interface TripListViewProps {
   onBack: () => void
@@ -21,15 +27,37 @@ interface TripListViewProps {
 export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) {
   const [activeTab, setActiveTab] = useState<'my' | 'shared'>('my')
   const [search, setSearch] = useState('')
+  const [sharedTrips, setSharedTrips] = useState<SharedTrip[]>([])
+  const [loadingShared, setLoadingShared] = useState(false)
+
+  // Fetch shared trips when switching to shared tab
+  useEffect(() => {
+    if (activeTab === 'shared') {
+      fetchSharedTrips()
+    }
+  }, [activeTab])
+
+  const fetchSharedTrips = async () => {
+    setLoadingShared(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/trips/shared-with-me`, {
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setSharedTrips(data.trips || [])
+      }
+    } catch (error) {
+      console.error('Error fetching shared trips:', error)
+    } finally {
+      setLoadingShared(false)
+    }
+  }
 
   const normalizedSearch = search.trim().toLowerCase()
 
-  // For now, all loaded trips are treated as "My trips".
-  // When shared trips are implemented, this is where we'll split by ownership.
-  const tripsForActiveTab =
-    activeTab === 'my'
-      ? (trips || [])
-      : [] // placeholder: no shared trips yet
+  // Filter trips based on active tab
+  const tripsForActiveTab = activeTab === 'my' ? (trips || []) : sharedTrips
 
   const visibleTrips = tripsForActiveTab.filter((trip) => {
     if (!normalizedSearch) return true
@@ -90,9 +118,18 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
       {/* Trip List - Scrollable */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-3">
-          {visibleTrips && visibleTrips.length > 0 ? (
+          {loadingShared && activeTab === 'shared' ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Loading shared trips...
+            </p>
+          ) : visibleTrips && visibleTrips.length > 0 ? (
             visibleTrips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} onClick={() => onTripClick(trip)} />
+              <TripCard 
+                key={trip.id} 
+                trip={trip} 
+                onClick={() => onTripClick(trip)}
+                isShared={activeTab === 'shared'}
+              />
             ))
           ) : activeTab === 'shared' ? (
             <p className="text-sm text-muted-foreground text-center py-8">
@@ -110,12 +147,14 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
 }
 
 interface TripCardProps {
-  trip: Trip
+  trip: SharedTrip
   onClick: () => void
+  isShared?: boolean
 }
 
-function TripCard({ trip, onClick }: TripCardProps) {
+function TripCard({ trip, onClick, isShared }: TripCardProps) {
   const formatDateRange = (start: string, end: string) => {
+    if (!start || !end) return ''
     const startDate = new Date(start)
     const endDate = new Date(end)
 
@@ -131,10 +170,11 @@ function TripCard({ trip, onClick }: TripCardProps) {
   }
 
   const getQuote = (title: string) => {
-    if (title.includes('tokyo')) {
+    const lowerTitle = title.toLowerCase()
+    if (lowerTitle.includes('tokyo')) {
       return '"Good food, good life. 10/10 would come again."'
     }
-    if (title.includes('detroit')) {
+    if (lowerTitle.includes('detroit')) {
       return '"I don\'t want to talk about it."'
     }
     return '"Amazing experience!"'
@@ -180,6 +220,15 @@ function TripCard({ trip, onClick }: TripCardProps) {
             </div>
           )}
         </div>
+        
+        {/* Shared by indicator */}
+        {isShared && trip.owner_username && (
+          <div className="absolute top-2 right-3 flex items-center gap-1 bg-blue-500/80 px-2 py-1 rounded text-xs text-white">
+            <User className="w-3 h-3" />
+            <span>{trip.owner_name || trip.owner_username}</span>
+          </div>
+        )}
+        
         <div className="absolute bottom-0 p-3 text-sm text-white italic">
           {getQuote(trip.title)}
         </div>

@@ -7,14 +7,16 @@ import { TripListView } from '@/components/sidebar/TripListView'
 import { TripDetailView } from '@/components/sidebar/TripDetailView'
 import { LocationDetailView } from '@/components/location/LocationDetailView'
 import { LocationDetailEdit } from '@/components/location/LocationDetailEdit'
+import { BottomNav } from '@/components/navigation/BottomNav'
+import { FriendsView } from '@/components/sidebar/FriendsView'
 import { UploadModal } from '@/components/upload'
 import { usePhotos } from '@/hooks/usePhotos'
-import { locationAPI, tripAPI } from '@/services/api'
+import { locationAPI, tripAPI, photoAPI } from '@/services/api'
 import { calculateTripBounds, getCityCoordinates, createCityBounds } from '@/lib/mapUtils'
 import type { Photo, Location, Trip } from '@/types'
 
 export default function MainApp() {
-  const { photos, loading: photosLoading, setPhotos } = usePhotos()
+  const { photos, loading: photosLoading, setPhotos, refresh: refreshPhotos } = usePhotos()
   const [trips, setTrips] = useState<Trip[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [tripsLoading, setTripsLoading] = useState(true)
@@ -217,6 +219,9 @@ export default function MainApp() {
   const handleUploadComplete = (trip?: Trip, newLocations?: Location[], pendingPhotos?: any[]) => {
     console.log('Upload completed:', { trip, locations: newLocations, pendingPhotos })
 
+    // Refresh photos to show newly uploaded ones on the map
+    refreshPhotos()
+
     if (trip) {
       setTrips(prevTrips => {
         // Only add if this trip doesn't already exist
@@ -242,9 +247,28 @@ export default function MainApp() {
           setLocationPhotos(first.photos || [])
           setIsEditing(true)
           setSidebarView('location-detail')
+
+          // Calculate bounds for the new locations and focus map
+          const bounds = calculateTripBounds(newLocations)
+
+          if (bounds) {
+            setMapFocusBounds(bounds)
+          } else {
+            // Fallback to city coordinates if available
+            const cityCoords = getCityCoordinates(trip.city, trip.country)
+            if (cityCoords) {
+              setMapFocusBounds(createCityBounds(cityCoords))
+            }
+          }
         }
       }
     }
+
+    // Refresh map photos so newly uploaded images are pinned without a full reload
+    photoAPI
+      .getPhotos()
+      .then((latest) => setPhotos(latest))
+      .catch((err) => console.error('Error refreshing photos after upload:', err))
 
     setIsUploadModalOpen(false)
   }
@@ -258,7 +282,7 @@ export default function MainApp() {
   }
 
   return (
-    <div className="h-full w-screen flex">
+    <div className="h-screen w-screen flex">
       {/* Sidebar */}
       <Sidebar view={sidebarView}>
         {sidebarView === 'home' && (
@@ -273,6 +297,9 @@ export default function MainApp() {
         {sidebarView === 'trip-list' && (
           <TripListView onBack={handleBackToHome} onTripClick={handleTripClick} trips={trips} />
         )}
+
+        {/* Friends View */}
+        {sidebarView === 'friends' && <FriendsView />}
 
         {sidebarView === 'trip-detail' && selectedTrip && (
           <TripDetailView
@@ -302,8 +329,8 @@ export default function MainApp() {
         )}
       </Sidebar>
 
-      {/* Map - offset by sidebar width */}
-      <div className="flex-1" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
+      {/* Map - offset by sidebar width, with bottom padding for nav */}
+      <div className="flex-1 pb-14" style={{ marginLeft: sidebarView === 'location-detail' ? '400px' : '360px' }}>
         <MapView
           photos={photos}
           onPhotoClick={handlePhotoClick}
@@ -317,6 +344,16 @@ export default function MainApp() {
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onUploadComplete={handleUploadComplete}
+      />
+
+      {/* Bottom Navigation - Home, Friends, Trips */}
+      <BottomNav
+        active={sidebarView}
+        onChange={view => {
+          if (view === 'home') setSidebarView('home')
+          if (view === 'friends') setSidebarView('friends')
+          if (view === 'trip-list') setSidebarView('trip-list')
+        }}
       />
     </div>
   )

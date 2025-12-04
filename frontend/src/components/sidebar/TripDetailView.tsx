@@ -3,8 +3,7 @@
  * Shows list of locations for a specific trip
  */
 
-import { useState } from 'react'
-import { ArrowLeft, MapPin, Star, Clock, Share2, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Star, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import type { Trip, Location } from '@/types'
@@ -20,11 +19,6 @@ interface TripDetailViewProps {
 }
 
 export function TripDetailView({ trip, onBack, onLocationClick, locations }: TripDetailViewProps) {
-  const [showShareModal, setShowShareModal] = useState(false)
-  const [friends, setFriends] = useState<any[]>([])
-  const [sharedWith, setSharedWith] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-
   // Filter locations for this trip
   const tripLocations = (locations ?? []).filter((loc) => loc.trip_id === trip.id)
 
@@ -50,42 +44,6 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
     : 0
   const totalPhotos = tripLocations.reduce((sum, l) => sum + (l.photos?.length || 0), 0)
 
-  const handleShareClick = async () => {
-    setShowShareModal(true)
-    setLoading(true)
-
-    // Load friends
-    const friendsResponse = await fetch('http://localhost:8000/api/friends')
-    const friendsData = await friendsResponse.json()
-    if (friendsData.success) setFriends(friendsData.friends)
-
-    // Load who trip is already shared with
-    const sharedResponse = await fetch(`http://localhost:8000/api/trips/${trip.id}/shared-with`)
-    const sharedData = await sharedResponse.json()
-    if (sharedData.success) setSharedWith(sharedData.shared_with)
-
-    setLoading(false)
-  }
-
-  const handleShareWithFriend = async (friendId: number) => {
-    const response = await fetch(`http://localhost:8000/api/trips/${trip.id}/share`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ friend_id: friendId })
-    })
-
-    // Reload shared list
-    const sharedResponse = await fetch(`http://localhost:8000/api/trips/${trip.id}/shared-with`)
-    const sharedData = await sharedResponse.json()
-    if (sharedData.success) setSharedWith(sharedData.shared_with)
-    
-    // Show success message
-    const friendName = friends.find(f => f.id === friendId)?.username || 'friend'
-    alert(`✅ Success! Trip shared with ${friendName}`)
-  }
-
-  const sharedIds = sharedWith.map(u => u.id)
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -100,10 +58,6 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
               {formatDateRange(trip.start_date, trip.end_date)}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleShareClick}>
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
-          </Button>
         </div>
       </div>
 
@@ -158,70 +112,6 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
           )}
         </div>
       </div>
-
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Share2 className="text-blue-600" size={24} />
-                <h2 className="text-xl font-bold">Share Trip</h2>
-              </div>
-              <button onClick={() => setShowShareModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
-            </div>
-
-            {loading ? (
-              <p className="text-center py-4">Loading...</p>
-            ) : (
-              <>
-                {sharedWith.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="font-medium mb-2 text-sm">Shared with:</h3>
-                    <div className="space-y-1">
-                      {sharedWith.map((user: any) => (
-                        <div key={user.id} className="p-2 bg-green-50 rounded text-sm">
-                          {user.username}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="font-medium mb-2 text-sm">Share with friends:</h3>
-                  {friends.length === 0 ? (
-                    <p className="text-gray-500 text-sm text-center py-4">No friends to share with</p>
-                  ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {friends.map((friend: any) => (
-                        <div
-                          key={friend.id}
-                          className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                        >
-                          <span className="text-sm">{friend.username}</span>
-                          {sharedIds.includes(friend.id) ? (
-                            <span className="text-xs text-green-600">✓ Shared</span>
-                          ) : (
-                            <button
-                              onClick={() => handleShareWithFriend(friend.id)}
-                              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                            >
-                              Share
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -46,7 +46,6 @@ export function FileSelectStep({ onFilesSelected, onClose }: FileSelectStepProps
       console.log('Sending files to backend for EXIF extraction...')
       const response = await fetch('http://localhost:8000/api/photos/extract-exif', {
         method: 'POST',
-        credentials: 'include',
         body: formData,
       })
 

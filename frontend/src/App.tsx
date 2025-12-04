@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import Login from '@/components/Login'
-import Friends from '@/components/Friends'
 import MainApp from '@/components/MainApp'
 
 interface User {
@@ -12,7 +11,6 @@ interface User {
 
 function App() {
   const [user, setUser] = useState<User | null>(null)
-  const [showFriends, setShowFriends] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Check if user is already logged in (keeps you logged in after page refresh)
@@ -45,7 +43,6 @@ function App() {
         credentials: 'include'
       })
       setUser(null)
-      setShowFriends(false)
     } catch (error) {
       console.error('Logout failed:', error)
     }
@@ -67,37 +64,24 @@ function App() {
 
   // Logged in - show main app
   return (
-    <div>
-      {/* Top Nav Bar */}
-      <div className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50 px-4 py-3">
-        <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold text-blue-600">JourniTag</h1>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowFriends(!showFriends)}
-              className={`px-4 py-2 rounded ${
-                showFriends ? 'bg-blue-600 text-white' : 'bg-gray-100'
-              }`}
-            >
-              {showFriends ? 'Back to Map' : 'Friends'}
-            </button>
-            <span className="text-sm text-gray-600">
-              {user.name || user.username}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded"
-            >
-              Logout
-            </button>
-          </div>
+    <div className="h-screen w-screen overflow-hidden">
+      {/* Minimal Top Bar - just user info and logout */}
+      <div className="fixed top-0 right-0 z-[1200] px-4 py-2">
+        <div className="flex items-center gap-3 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm px-3 py-2">
+          <span className="text-sm font-medium text-gray-700">
+            {user.name || user.username}
+          </span>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-red-600 hover:text-red-700 hover:underline"
+          >
+            Logout
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="pt-[60px] h-screen">
-        {showFriends ? <Friends /> : <MainApp />}
-      </div>
+      {/* Main App - has its own BottomNav with Home, Friends, Trips */}
+      <MainApp />
     </div>
   )
 }
