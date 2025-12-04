@@ -4,7 +4,8 @@ const API_BASE_URL = 'http://localhost:8000/api'
 
 export const tripAPI = {
   async getAllTrips(): Promise<Trip[]> {
-    const response = await fetch(`${API_BASE_URL}/trips`, {
+    // Use /all endpoint to get both owned and shared trips with access control info
+    const response = await fetch(`${API_BASE_URL}/trips/all`, {
       credentials: 'include'
     })
     if (!response.ok) throw new Error('Failed to fetch trips')

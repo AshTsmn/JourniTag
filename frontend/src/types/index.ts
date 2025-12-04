@@ -28,6 +28,11 @@ export interface Trip {
   rating?: number // Average rating from locations
   cover_photo?: Photo
   photo_count?: number
+  // Access control fields
+  access_type?: 'owner' | 'shared' // Whether user owns or has shared access
+  access_level?: 'read' | 'edit' | 'owner' // Permission level
+  owner_username?: string // Original owner's username (for shared trips)
+  owner_name?: string // Original owner's name (for shared trips)
 }
 
 export interface Location {
