@@ -17,6 +17,7 @@ interface LocationDetailViewProps {
   photos: Photo[]
   onBack: () => void
   onEdit: () => void
+  onShare?: () => void
   canEdit?: boolean
   sharedOwnerName?: string
 }
@@ -26,6 +27,7 @@ export function LocationDetailView({
   photos,
   onBack,
   onEdit,
+  onShare,
   canEdit = true,
   sharedOwnerName,
 }: LocationDetailViewProps) {
@@ -132,7 +134,7 @@ export function LocationDetailView({
               <Briefcase className="w-4 h-4 mr-2" />
               Add to trip
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={onShare}>
               <Share2 className="w-4 h-4 mr-2" />
               Share
             </Button>

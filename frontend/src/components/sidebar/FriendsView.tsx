@@ -27,7 +27,20 @@ interface FriendRequest {
 
 type Tab = 'friends' | 'add' | 'share'
 
-export function FriendsView() {
+interface FriendsViewProps {
+  /**
+   * Optional trip id to immediately open in the "Share Trips" tab.
+   * Used when user clicks Share from a specific location/trip context.
+   */
+  shareTripId?: string | number | null
+  /**
+   * Callback fired once the shareTripId has been consumed, so parent
+   * can clear its temporary navigation state.
+   */
+  onShareHandled?: () => void
+}
+
+export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
   const [activeTab, setActiveTab] = useState<Tab>('friends')
   const [friends, setFriends] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -61,6 +74,23 @@ export function FriendsView() {
       fetchFriendRequests()
     }
   }, [activeTab])
+
+  // If we are given a trip to share (e.g. from Location detail "Share" button),
+  // automatically switch to Share tab and preselect that trip once trips are loaded.
+  useEffect(() => {
+    if (!shareTripId || trips.length === 0) return
+
+    const numericId = Number(shareTripId)
+    if (!Number.isFinite(numericId)) return
+
+    const trip = trips.find((t) => t.id === numericId)
+    if (!trip) return
+
+    setActiveTab('share')
+    setSelectedTrip(trip)
+    fetchSharedWith(trip.id)
+    onShareHandled?.()
+  }, [shareTripId, trips])
 
   const fetchFriends = async () => {
     try {

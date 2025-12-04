@@ -24,22 +24,35 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
 
   const formatDateRange = (start: string, end: string) => {
     if (!start && !end) return ''
+
     const startDate = start ? new Date(start) : null
     const endDate = end ? new Date(end) : null
 
-    const startMonth = startDate?.toLocaleDateString('en-US', { month: 'short' })
-    const endMonth = endDate?.toLocaleDateString('en-US', { month: 'short' })
-    const startDay = startDate?.getDate()
-    const endDay = endDate?.getDate()
+    const startValid = !!(startDate && !isNaN(startDate.getTime()))
+    const endValid = !!(endDate && !isNaN(endDate.getTime()))
 
-    if (startDate && !endDate) {
-      return `${startMonth} ${startDay}, ${startDate.getFullYear()}`
+    if (!startValid && !endValid) return ''
+
+    const startMonth = startValid
+      ? startDate!.toLocaleDateString('en-US', { month: 'short' })
+      : ''
+    const endMonth = endValid
+      ? endDate!.toLocaleDateString('en-US', { month: 'short' })
+      : ''
+    const startDay = startValid ? startDate!.getDate() : ''
+    const endDay = endValid ? endDate!.getDate() : ''
+    const year = startValid ? startDate!.getFullYear() : ''
+
+    // Only start date is valid
+    if (startValid && !endValid) {
+      return `${startMonth} ${startDay}, ${year}`
     }
 
+    // Both valid – format a range
     if (startMonth === endMonth) {
-      return `${startMonth} ${startDay} - ${endDay}, ${startDate?.getFullYear() ?? ''}`
+      return `${startMonth} ${startDay} - ${endDay}, ${year}`
     }
-    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startDate?.getFullYear() ?? ''}`
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`
   }
 
   // Compute dynamic stats

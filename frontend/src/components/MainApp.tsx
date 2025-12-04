@@ -34,6 +34,7 @@ export default function MainApp({ currentUser }: MainAppProps) {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [mapFocusBounds, setMapFocusBounds] = useState<L.LatLngBounds | null>(null)
   const [sharedOwnerNameForView, setSharedOwnerNameForView] = useState<string | undefined>(undefined)
+  const [shareTripIdForFriends, setShareTripIdForFriends] = useState<string | null>(null)
 
   const loading = photosLoading || tripsLoading
 
@@ -194,6 +195,13 @@ export default function MainApp({ currentUser }: MainAppProps) {
     setIsEditing(true)
   }
 
+  const handleShareLocation = () => {
+    if (selectedLocation?.trip_id) {
+      setShareTripIdForFriends(selectedLocation.trip_id)
+      setSidebarView('friends')
+    }
+  }
+
   const handleCancelEdit = () => {
     setIsEditing(false)
   }
@@ -307,7 +315,12 @@ export default function MainApp({ currentUser }: MainAppProps) {
         )}
 
         {/* Friends View */}
-        {sidebarView === 'friends' && <FriendsView />}
+        {sidebarView === 'friends' && (
+          <FriendsView
+            shareTripId={shareTripIdForFriends}
+            onShareHandled={() => setShareTripIdForFriends(null)}
+          />
+        )}
 
         {sidebarView === 'trip-detail' && selectedTrip && (
           <TripDetailView
@@ -332,6 +345,7 @@ export default function MainApp({ currentUser }: MainAppProps) {
               photos={locationPhotos}
               onBack={selectedTrip ? handleBackToTripDetail : handleBackToHome}
               onEdit={handleEditClick}
+              onShare={handleShareLocation}
               canEdit={
                 !selectedTrip
                   ? !sharedOwnerNameForView
