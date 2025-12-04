@@ -48,10 +48,14 @@ export const tripAPI = {
   async deleteTrip(id: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/trips/${id}`, {
       method: 'DELETE',
-      credentials: 'include',
     })
-    if (!response.ok) throw new Error('Failed to delete trip')
-  },
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to delete trip' }))
+      throw new Error(error.error || 'Failed to delete trip')
+    }
+    const data = await response.json()
+    console.log(data.message) // "Trip 'Tokyo Adventure' deleted successfully"
+  }
 }
 
 export const locationAPI = {

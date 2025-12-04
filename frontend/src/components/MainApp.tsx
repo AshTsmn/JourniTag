@@ -266,6 +266,22 @@ export default function MainApp({ currentUser }: MainAppProps) {
     setIsUploadModalOpen(false)
   }
 
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!confirm('Are you sure you want to delete this trip? This will delete all locations and photos.')) {
+      return
+    }
+    
+    try {
+      await tripAPI.deleteTrip(tripId)
+      // Refresh trips list
+      const updatedTrips = await tripAPI.getAllTrips()
+      setTrips(updatedTrips)
+      alert('Trip deleted successfully')
+    } catch (error) {
+      alert(`Failed to delete trip: ${error.message}`)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">

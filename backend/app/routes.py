@@ -1513,3 +1513,58 @@ def get_all_my_trips():
         all_trips.append(trip_dict)
 
     return flask.jsonify({'success': True, 'trips': all_trips})
+
+@app.route('/api/trips/<int:trip_id>', methods=['DELETE'])
+def delete_trip(trip_id):
+    """Delete a trip and all associated locations/photos (cascade)."""
+    current_user = get_current_user()
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+
+    connection = get_db()
+    
+    # Verify trip exists and user owns it
+    cursor = connection.execute(
+        "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
+        (trip_id, current_user['id'])
+    )
+    trip = cursor.fetchone()
+    
+    if not trip:
+        return flask.jsonify({'success': False, 'error': 'Trip not found or not authorized'}), 404
+    
+    # Get all photo file URLs before deletion (to clean up files)
+    cursor = connection.execute(
+        """
+        SELECT p.file_url FROM Photos p
+        JOIN Locations l ON p.location_id = l.id
+        WHERE l.trip_id = ?
+        """,
+        (trip_id,)
+    )
+    photo_files = [row['file_url'] for row in cursor.fetchall()]
+    
+    # Delete the trip (cascade will handle locations, photos, shared trips, etc.)
+    connection.execute("DELETE FROM Trips WHERE id = ?", (trip_id,))
+    connection.commit()
+    
+    # Clean up photo files from storage
+    import os
+    deleted_count = 0
+    for file_url in photo_files:
+        file_path = f".{file_url}"  # Convert URL to file path
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                deleted_count += 1
+            except Exception as e:
+                print(f"Failed to delete file {file_path}: {e}")
+    
+    print(f"✅ Deleted trip '{trip['title']}' (ID: {trip_id})")
+    print(f"   Cleaned up {deleted_count} photo files")
+    
+    return flask.jsonify({
+        'success': True,
+        'message': f"Trip '{trip['title']}' deleted successfully",
+        'photos_deleted': deleted_count
+    })
