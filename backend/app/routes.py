@@ -1454,7 +1454,7 @@ def get_all_my_trips():
 
     # Get owned trips
     cursor = connection.execute(
-        "SELECT *, 'owner' as access_type FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
+        "SELECT *, 'owner' as access_type, 'owner' as access_level FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
         (current_user['id'],)
     )
     owned_trips = cursor.fetchall()
@@ -1462,7 +1462,7 @@ def get_all_my_trips():
     # Get shared trips
     cursor = connection.execute(
         """
-        SELECT t.*, 'shared' as access_type, u.username as owner_username
+        SELECT t.*, 'shared' as access_type, st.access_level, u.username as owner_username
         FROM SharedTrips st
         JOIN Trips t ON st.trip_id = t.id
         JOIN Users u ON t.user_id = u.id
