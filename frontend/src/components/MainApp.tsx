@@ -182,6 +182,12 @@ export default function MainApp({ currentUser }: MainAppProps) {
         return Object.values(byId)
       })
 
+      // Find and set the trip for this location (needed for access control)
+      const trip = trips.find(t => t.id === enriched.trip_id)
+      if (trip) {
+        setSelectedTrip(trip)
+      }
+
       setSelectedLocation(enriched)
       setLocationPhotos(photos)
       setSidebarView('location-detail')
@@ -250,35 +256,6 @@ export default function MainApp({ currentUser }: MainAppProps) {
       .getAllTrips()
       .then((freshTrips) => setTrips(freshTrips))
       .catch((error) => console.error('Error refreshing trips after upload:', error))
-
-    if (newLocations && newLocations.length > 0) {
-      setLocations(prev => [...prev, ...newLocations])
-
-      // Navigate to edit the first location
-      if (trip) {
-        const first = newLocations[0]
-        if (first) {
-          setSelectedTrip(trip)
-          setSelectedLocation({ ...first, pendingPhotoUploads: pendingPhotos }) // Add pending photos here
-          setLocationPhotos(first.photos || [])
-          setIsEditing(true)
-          setSidebarView('location-detail')
-
-          // Calculate bounds for the new locations and focus map
-          const bounds = calculateTripBounds(newLocations)
-
-          if (bounds) {
-            setMapFocusBounds(bounds)
-          } else {
-            // Fallback to city coordinates if available
-            const cityCoords = getCityCoordinates(trip.city, trip.country)
-            if (cityCoords) {
-              setMapFocusBounds(createCityBounds(cityCoords))
-            }
-          }
-        }
-      }
-    }
 
     // Refresh map photos so newly uploaded images are pinned without a full reload
     photoAPI

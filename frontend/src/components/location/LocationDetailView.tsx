@@ -31,6 +31,7 @@ export function LocationDetailView({
   canEdit = true,
   sharedOwnerName,
 }: LocationDetailViewProps) {
+  const creatorName = sharedOwnerName || 'You'
   const parseNotes = (notes?: string) => {
     if (!notes) return []
 
@@ -118,18 +119,16 @@ export function LocationDetailView({
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold">{location.name}</h1>
-            {canEdit && (
-              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                <Avatar className="w-6 h-6">
-                  <AvatarFallback>You</AvatarFallback>
-                </Avatar>
-                <span>Created by You</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+              <Avatar className="w-6 h-6">
+                <AvatarFallback>{creatorName.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <span>Created by {creatorName}</span>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
+          {/* Action Buttons -- commented out for now */}
+          {/* <div className="flex gap-3">
             <Button className="flex-1" variant="default">
               <Briefcase className="w-4 h-4 mr-2" />
               Add to trip
@@ -138,7 +137,7 @@ export function LocationDetailView({
               <Share2 className="w-4 h-4 mr-2" />
               Share
             </Button>
-          </div>
+          </div> */}
 
           <Separator />
 

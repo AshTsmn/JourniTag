@@ -15,5 +15,3 @@ CREATE INDEX IF NOT EXISTS idx_friend_requests_from ON FriendRequests(from_user_
 CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON FriendRequests(to_user_id);
 
 
-
-
