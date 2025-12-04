@@ -323,6 +323,7 @@ export default function MainApp() {
               photos={locationPhotos}
               onBack={selectedTrip ? handleBackToTripDetail : handleBackToHome}
               onEdit={handleEditClick}
+              trip={selectedTrip || undefined}
             />
           )
         )}

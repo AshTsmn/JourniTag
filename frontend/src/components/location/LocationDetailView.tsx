@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
-import type { Location, Photo } from '@/types'
+import type { Location, Photo, Trip } from '@/types'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -17,6 +17,7 @@ interface LocationDetailViewProps {
   photos: Photo[]
   onBack: () => void
   onEdit: () => void
+  trip?: Trip // Trip information for access control
 }
 
 export function LocationDetailView({
@@ -24,7 +25,16 @@ export function LocationDetailView({
   photos,
   onBack,
   onEdit,
+  trip,
 }: LocationDetailViewProps) {
+  // Check if user can edit (owner or has edit access)
+  const canEdit = trip && (trip.access_level === 'owner' || trip.access_level === 'edit')
+
+  // Determine who created this location
+  // Show owner name if this is a shared trip (user is not the owner)
+  const creatorName = trip?.access_level === 'read' || trip?.access_level === 'edit'
+    ? (trip.owner_name || trip.owner_username || 'Unknown')
+    : 'You'
   const parseNotes = (notes?: string) => {
     if (!notes) return []
 
@@ -106,9 +116,9 @@ export function LocationDetailView({
             <h1 className="text-2xl font-bold">{location.name}</h1>
             <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
               <Avatar className="w-6 h-6">
-                <AvatarFallback>You</AvatarFallback>
+                <AvatarFallback>{creatorName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <span>Created by You</span>
+              <span>Created by {creatorName}</span>
             </div>
           </div>
 
@@ -131,9 +141,11 @@ export function LocationDetailView({
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-semibold">Author notes</h3>
               <div className="flex-1" />
-              <Button variant="ghost" size="icon" onClick={onEdit}>
-                <Pencil className="w-4 h-4" />
-              </Button>
+              {canEdit && (
+                <Button variant="ghost" size="icon" onClick={onEdit}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              )}
             </div>
 
             {/* Ratings */}

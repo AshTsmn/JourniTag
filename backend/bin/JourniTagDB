@@ -28,6 +28,7 @@ case $1 in
     sqlite3 "$DB_FILE" < sql/schema.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/data.sql > /dev/null
     sqlite3 "$DB_FILE" < sql/add_auth.sql > /dev/null
+    sqlite3 "$DB_FILE" < sql/add_access_control.sql > /dev/null
     echo "+ Database created successfully with auth tables."
     ;;
 

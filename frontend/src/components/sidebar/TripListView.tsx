@@ -57,7 +57,9 @@ export function TripListView({ onBack, onTripClick, trips }: TripListViewProps) 
   const normalizedSearch = search.trim().toLowerCase()
 
   // Filter trips based on active tab
-  const tripsForActiveTab = activeTab === 'my' ? (trips || []) : sharedTrips
+  // For "My trips" tab, only show owned trips (not shared ones)
+  const myOwnedTrips = (trips || []).filter(trip => trip.access_level === 'owner')
+  const tripsForActiveTab = activeTab === 'my' ? myOwnedTrips : sharedTrips
 
   const visibleTrips = tripsForActiveTab.filter((trip) => {
     if (!normalizedSearch) return true

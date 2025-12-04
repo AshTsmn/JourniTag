@@ -3,9 +3,11 @@
  * Shows list of locations for a specific trip
  */
 
-import { ArrowLeft, MapPin, Star, Clock } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, MapPin, Star, Clock, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { ShareTripModal } from '@/components/trip/ShareTripModal'
 import type { Trip, Location } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +21,11 @@ interface TripDetailViewProps {
 }
 
 export function TripDetailView({ trip, onBack, onLocationClick, locations }: TripDetailViewProps) {
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+
+  // Check if user is the owner (can share the trip)
+  const isOwner = trip.access_level === 'owner'
+
   // Filter locations for this trip
   const tripLocations = (locations ?? []).filter((loc) => loc.trip_id === trip.id)
 
@@ -58,6 +65,17 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
               {formatDateRange(trip.start_date, trip.end_date)}
             </p>
           </div>
+          {isOwner && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsShareModalOpen(true)}
+              className="gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </Button>
+          )}
         </div>
       </div>
 
@@ -112,6 +130,13 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
           )}
         </div>
       </div>
+
+      {/* Share Modal */}
+      <ShareTripModal
+        isOpen={isShareModalOpen}
+        trip={trip}
+        onClose={() => setIsShareModalOpen(false)}
+      />
     </div>
   )
 }

@@ -20,6 +20,42 @@ def get_current_user():
     user = cursor.fetchone()
     return dict(user) if user else None
 
+def check_trip_access(trip_id, user_id, require_edit=False):
+    """Check if user has access to a trip.
+
+    Args:
+        trip_id: ID of the trip
+        user_id: ID of the user
+        require_edit: If True, check for edit access. If False, read access is sufficient.
+
+    Returns:
+        dict with 'has_access' (bool), 'is_owner' (bool), 'access_level' (str or None)
+    """
+    connection = get_db()
+
+    # Check if user owns the trip
+    cursor = connection.execute(
+        "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
+        (trip_id, user_id)
+    )
+    if cursor.fetchone():
+        return {'has_access': True, 'is_owner': True, 'access_level': 'owner'}
+
+    # Check if trip is shared with user
+    cursor = connection.execute(
+        "SELECT access_level FROM SharedTrips WHERE trip_id = ? AND shared_with_user_id = ?",
+        (trip_id, user_id)
+    )
+    shared = cursor.fetchone()
+
+    if shared:
+        access_level = shared['access_level']
+        if require_edit and access_level != 'edit':
+            return {'has_access': False, 'is_owner': False, 'access_level': access_level}
+        return {'has_access': True, 'is_owner': False, 'access_level': access_level}
+
+    return {'has_access': False, 'is_owner': False, 'access_level': None}
+
 @app.route('/')
 def get_index():
     """Simple health endpoint for the backend root."""
@@ -70,15 +106,13 @@ def batch_upload_photos():
             'error': 'Location not found'
         }), 404
 
-    # Get trip to verify user authorization
-    cursor = connection.execute("SELECT * FROM Trips WHERE id = ?", (location['trip_id'],))
-    trip = cursor.fetchone()
-
-    # if not trip or trip['user_id'] != user_id:
-    #     return flask.jsonify({
-    #         'success': False,
-    #         'error': 'Not authorized to upload to this location'
-    #     }), 403
+    # Check if user has edit access to the trip
+    access = check_trip_access(location['trip_id'], user_id, require_edit=True)
+    if not access['has_access']:
+        return flask.jsonify({
+            'success': False,
+            'error': 'You do not have permission to upload photos to this location. This trip is read-only.'
+        }), 403
 
     try:
         created_photos = []
@@ -736,6 +770,10 @@ def create_location():
 @app.route('/api/locations/<int:location_id>', methods=['PUT'])
 def update_location(location_id):
     """Update a location."""
+    current_user = get_current_user()
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+
     data = flask.request.get_json()
 
     connection = get_db()
@@ -745,6 +783,14 @@ def update_location(location_id):
 
     if not location:
         return flask.jsonify({'success': False, 'error': 'Location not found'}), 404
+
+    # Check if user has edit access to the trip
+    access = check_trip_access(location['trip_id'], current_user['id'], require_edit=True)
+    if not access['has_access']:
+        return flask.jsonify({
+            'success': False,
+            'error': 'You do not have permission to edit this location. This trip is read-only.'
+        }), 403
 
     # Update fields
     name = data.get('name', location['name'])
@@ -1121,19 +1167,52 @@ def share_trip(trip_id):
     if cursor.fetchone():
         return flask.jsonify({'success': True, 'message': 'Already shared'})
     
-    # Share trip
+    # Share trip with read-only access by default
     created_at = int(datetime.now().timestamp())
     connection.execute(
         """
-        INSERT INTO SharedTrips 
-        (trip_id, shared_by_user_id, shared_with_user_id, shared_with_email, created_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO SharedTrips
+        (trip_id, shared_by_user_id, shared_with_user_id, shared_with_email, created_at, access_level)
+        VALUES (?, ?, ?, ?, ?, 'read')
         """,
         (trip_id, current_user['id'], friend_id, friend['email'], created_at)
     )
     connection.commit()
-    
-    return flask.jsonify({'success': True, 'message': 'Trip shared'})
+
+    return flask.jsonify({'success': True, 'message': 'Trip shared with read-only access'})
+
+
+@app.route('/api/trips/<int:trip_id>/unshare', methods=['POST'])
+def unshare_trip(trip_id):
+    """Unshare trip with a user."""
+    current_user = get_current_user()
+    if not current_user:
+        return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
+
+    data = flask.request.get_json()
+    friend_id = data.get('friend_id')
+
+    if not friend_id:
+        return flask.jsonify({'success': False, 'error': 'friend_id required'}), 400
+
+    connection = get_db()
+
+    # Verify trip ownership
+    cursor = connection.execute(
+        "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
+        (trip_id, current_user['id'])
+    )
+    if not cursor.fetchone():
+        return flask.jsonify({'success': False, 'error': 'Not authorized'}), 403
+
+    # Delete share
+    connection.execute(
+        "DELETE FROM SharedTrips WHERE trip_id = ? AND shared_with_user_id = ?",
+        (trip_id, friend_id)
+    )
+    connection.commit()
+
+    return flask.jsonify({'success': True, 'message': 'Trip unshared'})
 
 
 @app.route('/api/trips/<int:trip_id>/shared-with', methods=['GET'])
@@ -1142,9 +1221,9 @@ def get_trip_shares(trip_id):
     current_user = get_current_user()
     if not current_user:
         return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
-    
+
     connection = get_db()
-    
+
     # Verify ownership
     cursor = connection.execute(
         "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
@@ -1152,7 +1231,7 @@ def get_trip_shares(trip_id):
     )
     if not cursor.fetchone():
         return flask.jsonify({'success': False, 'error': 'Not authorized'}), 403
-    
+
     # Get shared users
     cursor = connection.execute(
         """
@@ -1164,7 +1243,7 @@ def get_trip_shares(trip_id):
         (trip_id,)
     )
     shared_with = cursor.fetchall()
-    
+
     return flask.jsonify({'success': True, 'shared_with': shared_with})
 
 
@@ -1203,15 +1282,15 @@ def get_all_my_trips():
     
     # Get owned trips
     cursor = connection.execute(
-        "SELECT *, 'owner' as access_type FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
+        "SELECT *, 'owner' as access_type, 'owner' as access_level FROM Trips WHERE user_id = ? ORDER BY created_at DESC",
         (current_user['id'],)
     )
     owned_trips = cursor.fetchall()
     
-    # Get shared trips
+    # Get shared trips with access level
     cursor = connection.execute(
         """
-        SELECT t.*, 'shared' as access_type, u.username as owner_username
+        SELECT t.*, 'shared' as access_type, st.access_level, u.username as owner_username, u.name as owner_name
         FROM SharedTrips st
         JOIN Trips t ON st.trip_id = t.id
         JOIN Users u ON t.user_id = u.id

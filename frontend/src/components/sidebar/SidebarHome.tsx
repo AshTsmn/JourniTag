@@ -20,6 +20,9 @@ interface SidebarHomeProps {
 }
 
 export function SidebarHome({ onTripClick, onUploadClick, onMyTripsClick, trips }: SidebarHomeProps) {
+  // Filter to only show owned trips in recent trips (not shared ones)
+  const myOwnedTrips = (trips || []).filter(trip => trip.access_level === 'owner')
+
   const formatDateRange = (start: string, end: string) => {
     const startDate = new Date(start)
     const endDate = new Date(end)
@@ -80,8 +83,8 @@ export function SidebarHome({ onTripClick, onUploadClick, onMyTripsClick, trips 
         <div className="px-4 pb-4">
           <h2 className="text-xl font-bold mb-4">Recent trips</h2>
           <div className="space-y-3">
-            {trips && trips.length > 0 ? (
-              trips.slice(0, 3).map((trip) => (
+            {myOwnedTrips && myOwnedTrips.length > 0 ? (
+              myOwnedTrips.slice(0, 3).map((trip) => (
                 <TripCard
                   key={trip.id}
                   trip={trip}
