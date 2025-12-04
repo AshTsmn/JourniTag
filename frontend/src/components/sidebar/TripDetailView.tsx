@@ -23,18 +23,23 @@ export function TripDetailView({ trip, onBack, onLocationClick, locations }: Tri
   const tripLocations = (locations ?? []).filter((loc) => loc.trip_id === trip.id)
 
   const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
+    if (!start && !end) return ''
+    const startDate = start ? new Date(start) : null
+    const endDate = end ? new Date(end) : null
 
-    const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' })
-    const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' })
-    const startDay = startDate.getDate()
-    const endDay = endDate.getDate()
+    const startMonth = startDate?.toLocaleDateString('en-US', { month: 'short' })
+    const endMonth = endDate?.toLocaleDateString('en-US', { month: 'short' })
+    const startDay = startDate?.getDate()
+    const endDay = endDate?.getDate()
+
+    if (startDate && !endDate) {
+      return `${startMonth} ${startDay}, ${startDate.getFullYear()}`
+    }
 
     if (startMonth === endMonth) {
-      return `${startMonth} ${startDay} - ${endDay}, ${startDate.getFullYear()}`
+      return `${startMonth} ${startDay} - ${endDay}, ${startDate?.getFullYear() ?? ''}`
     }
-    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startDate.getFullYear()}`
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startDate?.getFullYear() ?? ''}`
   }
 
   // Compute dynamic stats

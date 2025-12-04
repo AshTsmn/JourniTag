@@ -154,14 +154,18 @@ interface TripCardProps {
 
 function TripCard({ trip, onClick, isShared }: TripCardProps) {
   const formatDateRange = (start: string, end: string) => {
-    if (!start || !end) return ''
-    const startDate = new Date(start)
-    const endDate = new Date(end)
+    if (!start && !end) return ''
+    const startDate = start ? new Date(start) : null
+    const endDate = end ? new Date(end) : null
 
-    const startMonth = startDate.toLocaleDateString('en-US', { month: 'short' })
-    const endMonth = endDate.toLocaleDateString('en-US', { month: 'short' })
-    const startDay = startDate.getDate()
-    const endDay = endDate.getDate()
+    const startMonth = startDate?.toLocaleDateString('en-US', { month: 'short' })
+    const endMonth = endDate?.toLocaleDateString('en-US', { month: 'short' })
+    const startDay = startDate?.getDate()
+    const endDay = endDate?.getDate()
+
+    if (startDate && !endDate) {
+      return `${startMonth} ${startDay}`
+    }
 
     if (startMonth === endMonth) {
       return `${startMonth} ${startDay} - ${endDay}`
