@@ -44,4 +44,3 @@ export function BottomNav({ active, onChange }: BottomNavProps) {
   )
 }
 
-
