@@ -32,6 +32,13 @@ export function LocationDetailView({
 
   // Determine who created this location
   // Show owner name if this is a shared trip (user is not the owner)
+  // console.log('LocationDetailView - trip data:', {
+  //   access_level: trip?.access_level,
+  //   owner_name: trip?.owner_name,
+  //   owner_username: trip?.owner_username,
+  //   access_type: trip?.access_type
+  // })
+
   const creatorName = trip?.access_level === 'read' || trip?.access_level === 'edit'
     ? (trip.owner_name || trip.owner_username || 'Unknown')
     : 'You'
@@ -122,8 +129,8 @@ export function LocationDetailView({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
+          {/* Action Buttons -- commented out for now */}
+          {/* <div className="flex gap-3">
             <Button className="flex-1" variant="default">
               <Briefcase className="w-4 h-4 mr-2" />
               Add to trip
@@ -132,7 +139,7 @@ export function LocationDetailView({
               <Share2 className="w-4 h-4 mr-2" />
               Share
             </Button>
-          </div>
+          </div> */}
 
           <Separator />
 

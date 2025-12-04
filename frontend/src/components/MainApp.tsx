@@ -167,6 +167,12 @@ export default function MainApp() {
         return Object.values(byId)
       })
 
+      // Find and set the trip for this location (needed for access control)
+      const trip = trips.find(t => t.id === enriched.trip_id)
+      if (trip) {
+        setSelectedTrip(trip)
+      }
+
       setSelectedLocation(enriched)
       setLocationPhotos(photos)
       setSidebarView('location-detail')
