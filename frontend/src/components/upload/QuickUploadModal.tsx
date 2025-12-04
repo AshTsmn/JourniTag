@@ -130,7 +130,7 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
     run()
   }, [selectedTripId])
 
-  // Auto-geocode coordinates into name/address
+  // Auto-geocode coordinates into name/address AND trip city/country
   useEffect(() => {
     const run = async () => {
       if (!firstCoordinates) return
@@ -143,6 +143,7 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
         if (!resp.ok) return
         const data = await resp.json()
         if (data?.success) {
+          // Update location details
           setLocationDetails(prev => ({
             ...prev,
             name: prev.name || data.name || '',
@@ -150,6 +151,15 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
             x: firstCoordinates.x,
             y: firstCoordinates.y,
           }))
+          
+          // ALSO update trip details with city and country (only if creating new trip)
+          if (tripMode === 'new') {
+            setTripDetails(prev => ({
+              ...prev,
+              city: prev.city || data.city || '',
+              country: prev.country || data.country || '',
+            }))
+          }
         } else {
           setLocationDetails(prev => ({ ...prev, x: firstCoordinates.x, y: firstCoordinates.y }))
         }
@@ -159,7 +169,7 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
       }
     }
     run()
-  }, [firstCoordinates])
+  }, [firstCoordinates, tripMode])  // Add tripMode to dependencies
 
   const openFileDialog = useCallback(() => {
     fileInputRef.current?.click()
