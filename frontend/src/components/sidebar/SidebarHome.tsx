@@ -146,15 +146,9 @@ function TripCard({ trip, onClick }: TripCardProps) {
     return `${startMonth} ${startDay} - ${endMonth} ${endDay}`
   }
 
-  // Get a sample quote based on trip title
+  // Optional helper for future custom subtitles; currently returns empty string
   const getQuote = (title: string) => {
-    if (title.includes('tokyo')) {
-      return '"Good food, good life. 10/10 would come again."'
-    }
-    if (title.includes('detroit')) {
-      return '"I don\'t want to talk about it."'
-    }
-    return '"Amazing experience!"'
+    return ''
   }
 
   return (
@@ -197,9 +191,11 @@ function TripCard({ trip, onClick }: TripCardProps) {
             </div>
           )}
         </div>
-        <div className="absolute bottom-0 p-3 text-sm text-white italic">
-          {getQuote(trip.title)}
-        </div>
+        {getQuote(trip.title) && (
+          <div className="absolute bottom-0 p-3 text-sm text-white italic">
+            {getQuote(trip.title)}
+          </div>
+        )}
       </div>
     </button>
   )

@@ -104,7 +104,9 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
     const run = async () => {
       try {
         const data = await tripAPI.getAllTrips()
-        setTrips(data)
+        // Only allow uploading to trips the current user owns
+        const ownedTrips = data.filter(t => t.access_type !== 'shared')
+        setTrips(ownedTrips)
       } catch (e) {
         console.error('Failed to load trips:', e)
       }
@@ -151,7 +153,7 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
             x: firstCoordinates.x,
             y: firstCoordinates.y,
           }))
-          
+
           // ALSO update trip details with city and country (only if creating new trip)
           if (tripMode === 'new') {
             setTripDetails(prev => ({

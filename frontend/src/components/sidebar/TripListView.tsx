@@ -188,14 +188,7 @@ function TripCard({ trip, onClick, isShared }: TripCardProps) {
   }
 
   const getQuote = (title: string) => {
-    const lowerTitle = title.toLowerCase()
-    if (lowerTitle.includes('tokyo')) {
-      return '"Good food, good life. 10/10 would come again."'
-    }
-    if (lowerTitle.includes('detroit')) {
-      return '"I don\'t want to talk about it."'
-    }
-    return '"Amazing experience!"'
+    return ''
   }
 
   return (
@@ -252,9 +245,11 @@ function TripCard({ trip, onClick, isShared }: TripCardProps) {
             </span>
           </div>
         )}
-        <div className="absolute bottom-0 left-0 right-0 p-3 text-sm text-white italic">
-          {getQuote(trip.title)}
-        </div>
+        {getQuote(trip.title) && (
+          <div className="absolute bottom-0 left-0 right-0 p-3 text-sm text-white italic">
+            {getQuote(trip.title)}
+          </div>
+        )}
       </div>
     </button>
   )
