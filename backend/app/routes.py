@@ -1462,7 +1462,7 @@ def get_all_my_trips():
     # Get shared trips
     cursor = connection.execute(
         """
-        SELECT t.*, 'shared' as access_type, st.access_level, u.username as owner_username
+        SELECT t.*, 'shared' as access_type, st.access_level, u.username as owner_username, u.name as owner_name
         FROM SharedTrips st
         JOIN Trips t ON st.trip_id = t.id
         JOIN Users u ON t.user_id = u.id
@@ -1473,44 +1473,71 @@ def get_all_my_trips():
     )
     shared_trips = cursor.fetchall()
 
-    # Combine and add metadata
+    # Combine and add metadata (cover photo, rating, photo_count)
     all_trips = []
 
-    for trip in owned_trips:
-        trip_dict = dict(trip)
+    def enrich_trip(trip_row):
+        trip_dict = dict(trip_row)
 
-        # Get cover photo
-        cursor = connection.execute(
+        # Cover photo (explicit cover first, else any recent photo)
+        cursor_local = connection.execute(
             """
             SELECT p.* FROM Photos p
             JOIN Locations l ON p.location_id = l.id
             WHERE l.trip_id = ? AND p.is_cover_photo = 1
             LIMIT 1
             """,
-            (trip['id'],)
+            (trip_row['id'],)
         )
-        cover = cursor.fetchone()
+        cover = cursor_local.fetchone()
+        if not cover:
+            cursor_local = connection.execute(
+                """
+                SELECT p.* FROM Photos p
+                JOIN Locations l ON p.location_id = l.id
+                WHERE l.trip_id = ?
+                ORDER BY p.taken_at DESC
+                LIMIT 1
+                """,
+                (trip_row['id'],)
+            )
+            cover = cursor_local.fetchone()
         trip_dict['cover_photo'] = dict(cover) if cover else None
 
-        all_trips.append(trip_dict)
+        # Average rating from locations
+        cursor_local = connection.execute(
+            """
+            SELECT AVG(rating) as avg_rating
+            FROM Locations
+            WHERE trip_id = ? AND rating > 0
+            """,
+            (trip_row['id'],)
+        )
+        rating_result = cursor_local.fetchone()
+        trip_dict['rating'] = (
+            rating_result['avg_rating'] if rating_result and rating_result['avg_rating'] else None
+        )
+
+        # Photo count for this trip
+        cursor_local = connection.execute(
+            """
+            SELECT COUNT(*) as photo_count
+            FROM Photos p
+            JOIN Locations l ON p.location_id = l.id
+            WHERE l.trip_id = ?
+            """,
+            (trip_row['id'],)
+        )
+        count_result = cursor_local.fetchone()
+        trip_dict['photo_count'] = count_result['photo_count'] if count_result else 0
+
+        return trip_dict
+
+    for trip in owned_trips:
+        all_trips.append(enrich_trip(trip))
 
     for trip in shared_trips:
-        trip_dict = dict(trip)
-
-        # Get cover photo
-        cursor = connection.execute(
-            """
-            SELECT p.* FROM Photos p
-            JOIN Locations l ON p.location_id = l.id
-            WHERE l.trip_id = ? AND p.is_cover_photo = 1
-            LIMIT 1
-            """,
-            (trip['id'],)
-        )
-        cover = cursor.fetchone()
-        trip_dict['cover_photo'] = dict(cover) if cover else None
-
-        all_trips.append(trip_dict)
+        all_trips.append(enrich_trip(trip))
 
     return flask.jsonify({'success': True, 'trips': all_trips})
 
@@ -1522,17 +1549,17 @@ def delete_trip(trip_id):
         return flask.jsonify({'success': False, 'error': 'Not logged in'}), 401
 
     connection = get_db()
-    
+
     # Verify trip exists and user owns it
     cursor = connection.execute(
         "SELECT * FROM Trips WHERE id = ? AND user_id = ?",
         (trip_id, current_user['id'])
     )
     trip = cursor.fetchone()
-    
+
     if not trip:
         return flask.jsonify({'success': False, 'error': 'Trip not found or not authorized'}), 404
-    
+
     # Get all photo file URLs before deletion (to clean up files)
     cursor = connection.execute(
         """
@@ -1543,11 +1570,11 @@ def delete_trip(trip_id):
         (trip_id,)
     )
     photo_files = [row['file_url'] for row in cursor.fetchall()]
-    
+
     # Delete the trip (cascade will handle locations, photos, shared trips, etc.)
     connection.execute("DELETE FROM Trips WHERE id = ?", (trip_id,))
     connection.commit()
-    
+
     # Clean up photo files from storage
     import os
     deleted_count = 0
@@ -1559,10 +1586,10 @@ def delete_trip(trip_id):
                 deleted_count += 1
             except Exception as e:
                 print(f"Failed to delete file {file_path}: {e}")
-    
+
     print(f"✅ Deleted trip '{trip['title']}' (ID: {trip_id})")
     print(f"   Cleaned up {deleted_count} photo files")
-    
+
     return flask.jsonify({
         'success': True,
         'message': f"Trip '{trip['title']}' deleted successfully",
