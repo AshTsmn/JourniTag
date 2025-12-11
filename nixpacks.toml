@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["python312", "gcc"]
+
+[phases.install]
+cmds = [
+  "python3 -m venv /opt/venv",
+  ". /opt/venv/bin/activate && pip install -r backend/requirements.txt"
+]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
+
+[start]
+cmd = ". /opt/venv/bin/activate && cd backend && gunicorn --bind 0.0.0.0:$PORT wsgi:app"

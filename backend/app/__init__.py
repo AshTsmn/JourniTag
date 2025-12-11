@@ -1,27 +1,72 @@
 """Flask App initializer."""
+import os
 import flask
 from flask_cors import CORS
 
-# Flask Instance
-app = flask.Flask(__name__)
+# Determine if we're in production
+IS_PRODUCTION = os.environ.get('RAILWAY_ENVIRONMENT') is not None
 
-# Session configuration (required for login/logout)
-app.secret_key = 'journitag-secret-key-2024'
+# Path to frontend build
+if IS_PRODUCTION:
+    static_folder = '/app/frontend/dist'
+else:
+    static_folder = '../../frontend/dist'
+
+# Flask Instance - serve React build from frontend/dist
+app = flask.Flask(
+    __name__,
+    static_folder=static_folder,
+    static_url_path=''
+)
+
+# Session configuration
+app.secret_key = os.environ.get('SECRET_KEY', 'journitag-secret-key-2024')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
 
-# CORS - must specify exact origin when using credentials (can't use wildcard *)
-CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
+# CORS
+allowed_origins = ['http://localhost:5173']
+if IS_PRODUCTION:
+    railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    if railway_url:
+        allowed_origins.append(f'https://{railway_url}')
+
+CORS(app, supports_credentials=True, origins=allowed_origins)
 
 app.config.from_object('app.config')
 
+# Serve uploaded photos
 from werkzeug.middleware.shared_data import SharedDataMiddleware
-import os
+uploads_path = os.path.join(app.root_path, '..', 'uploads')
 app.wsgi_app = SharedDataMiddleware(app.wsgi_app, {
-    '/uploads': os.path.join(app.root_path, '..', 'uploads')
+    '/uploads': uploads_path
 })
 
+# Initialize database
 from app import db
 db.init_app(app)
 
+# Import routes
 from app import routes
+
+# Serve React frontend for all non-API routes
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """Serve React app for all routes except /api/*."""
+    if path.startswith('api/'):
+        return flask.abort(404)
+    
+    # Check if static folder exists
+    if not os.path.exists(app.static_folder):
+        return flask.jsonify({
+            'error': 'Frontend not built',
+            'message': 'Run: cd frontend && npm run build'
+        }), 500
+    
+    static_file_path = os.path.join(app.static_folder, path)
+    if os.path.exists(static_file_path) and os.path.isfile(static_file_path):
+        return flask.send_from_directory(app.static_folder, path)
+    
+    return flask.send_from_directory(app.static_folder, 'index.html')
