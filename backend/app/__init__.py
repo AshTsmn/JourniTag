@@ -3,14 +3,27 @@ import os
 import flask
 from flask_cors import CORS
 
-# Determine if we're in production
-IS_PRODUCTION = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+# Determine if we're in production - check multiple env vars
+IS_PRODUCTION = (
+    os.environ.get('RAILWAY_ENVIRONMENT') is not None or
+    os.environ.get('PORT') is not None or
+    os.path.exists('/app/frontend/dist')  # If this path exists, we're in Docker
+)
 
 # Path to frontend build
 if IS_PRODUCTION:
     static_folder = '/app/frontend/dist'
+    print(f"🚀 PRODUCTION MODE - serving frontend from: {static_folder}")
 else:
     static_folder = '../../frontend/dist'
+    print(f"🔧 DEV MODE - serving frontend from: {static_folder}")
+
+# Verify static folder exists
+if os.path.exists(static_folder):
+    print(f"✅ Frontend found at: {static_folder}")
+    print(f"   Files: {os.listdir(static_folder)}")
+else:
+    print(f"❌ WARNING: Frontend not found at: {static_folder}")
 
 # Flask Instance - serve React build from frontend/dist
 app = flask.Flask(

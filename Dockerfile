@@ -1,3 +1,15 @@
+FROM node:18 AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Copy frontend files
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ ./
+RUN npm run build
+
+# Python backend stage
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -16,14 +28,14 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/backend/requirements.txt
 
-# Copy entire application
-COPY . /app/
+# Copy backend code
+COPY backend/ /app/backend/
 
-# Verify frontend/dist exists
-RUN echo "Checking for frontend build..." && \
-    ls -la /app/frontend/ && \
-    ls -la /app/frontend/dist/ && \
-    echo "Frontend files found!"
+# Copy built frontend from frontend-builder stage
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+
+# Verify frontend exists
+RUN ls -la /app/frontend/dist/
 
 # Set working directory to backend
 WORKDIR /app/backend
