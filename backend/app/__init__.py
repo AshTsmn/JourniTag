@@ -38,14 +38,13 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
 
-# CORS
-allowed_origins = ['http://localhost:5173']
+# CORS configuration
 if IS_PRODUCTION:
-    railway_url = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
-    if railway_url:
-        allowed_origins.append(f'https://{railway_url}')
-
-CORS(app, supports_credentials=True, origins=allowed_origins)
+    # In production, frontend and backend are on same domain - allow all origins
+    CORS(app, supports_credentials=True, origins=['*'])
+else:
+    # In development, only allow localhost
+    CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
 
 app.config.from_object('app.config')
 
@@ -75,11 +74,15 @@ def serve_frontend(path):
     if not os.path.exists(app.static_folder):
         return flask.jsonify({
             'error': 'Frontend not built',
-            'message': 'Run: cd frontend && npm run build'
+            'message': 'Run: cd frontend && npm run build',
+            'static_folder': app.static_folder
         }), 500
     
-    static_file_path = os.path.join(app.static_folder, path)
-    if os.path.exists(static_file_path) and os.path.isfile(static_file_path):
-        return flask.send_from_directory(app.static_folder, path)
+    # If requesting a specific static file (CSS, JS, images)
+    if path:
+        static_file_path = os.path.join(app.static_folder, path)
+        if os.path.exists(static_file_path) and os.path.isfile(static_file_path):
+            return flask.send_from_directory(app.static_folder, path)
     
+    # Otherwise serve index.html (for React Router)
     return flask.send_from_directory(app.static_folder, 'index.html')

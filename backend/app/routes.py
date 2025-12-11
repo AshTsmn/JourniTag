@@ -20,9 +20,9 @@ def get_current_user():
     user = cursor.fetchone()
     return dict(user) if user else None
 
-@app.route('/')
-def get_index():
-    """Simple health endpoint for the backend root."""
+@app.route('/api/health')
+def get_health():
+    """Simple health endpoint for the backend."""
     return flask.jsonify({"status": "ok"})
 # unused route
 # @app.route('/')
