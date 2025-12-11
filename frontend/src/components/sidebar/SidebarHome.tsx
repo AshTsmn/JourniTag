@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import type { Trip } from '@/types'
 import { cn } from '@/lib/utils'
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = ''
 
 interface SidebarHomeProps {
   onTripClick?: (trip: Trip) => void

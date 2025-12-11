@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import type { Location, Photo } from '@/types'
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = ''
 
 interface LocationDetailViewProps {
   location: Location

@@ -21,7 +21,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       : { username, password };
 
     try {
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',  // <-- THIS LINE IS NEW - enables session cookies

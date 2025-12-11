@@ -11,7 +11,7 @@ import { ShareTripModal } from '@/components/trip/ShareTripModal'
 import type { Trip, Location } from '@/types'
 import { cn } from '@/lib/utils'
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = ''
 
 interface TripDetailViewProps {
   trip: Trip

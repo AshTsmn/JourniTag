@@ -34,16 +34,20 @@ app = flask.Flask(
 
 # Session configuration
 app.secret_key = os.environ.get('SECRET_KEY', 'journitag-secret-key-2024')
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None' if IS_PRODUCTION else 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
+app.config['SESSION_COOKIE_SECURE'] = True  # Always True for production HTTPS
 
 # CORS configuration
 if IS_PRODUCTION:
-    # In production, frontend and backend are on same domain - allow all origins
-    CORS(app, supports_credentials=True, origins=['*'])
+    # In production, same domain - be more permissive
+    CORS(app, 
+         supports_credentials=True, 
+         origins=['*'],
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 else:
-    # In development, only allow localhost
+    # In development
     CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
 
 app.config.from_object('app.config')

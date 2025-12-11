@@ -3,22 +3,29 @@
 import sqlite3
 import flask
 
+def init_app(app):
+    """Initialize database connection for Flask app."""
+    print("🔧 Initializing database...")
+    try:
+        # Initialize database schema if needed
+        from app.init_db import init_database
+        init_database()
+        print("✅ Database initialization complete")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    app.teardown_appcontext(close_db)
+
 
 def dict_factory(ptr, row):
-    """Convert database row objects to a dictionary keyed on column name.
-
-    ptr: sqlite3.Cursor
-    row: tuple
-    """
+    """Convert database row objects to a dictionary keyed on column name."""
     return {col[0]: row[idx] for idx, col in enumerate(ptr.description)}
 
 
 def get_db():
-    """Open a new database connection.
-
-    Flask docs:
-    https://flask.palletsprojects.com/en/1.0.x/appcontext/#storing-data
-    """
+    """Open a new database connection."""
     if 'sqlite_db' not in flask.g:
         db_filename = flask.current_app.config['DATABASE_FILENAME']
         flask.g.sqlite_db = sqlite3.connect(str(db_filename))
@@ -28,19 +35,8 @@ def get_db():
 
 
 def close_db(error):
-    """Close the database at the end of a request.
-
-    error: Exception or None
-
-    Flask docs:
-    https://flask.palletsprojects.com/en/1.0.x/appcontext/#storing-data
-    """
+    """Close the database at the end of a request."""
     sqlite_db = flask.g.pop('sqlite_db', None)
     if sqlite_db is not None:
         sqlite_db.commit()
         sqlite_db.close()
-
-
-def init_app(app):
-    """Attach the database teardown function to the Flask app."""
-    app.teardown_appcontext(close_db)

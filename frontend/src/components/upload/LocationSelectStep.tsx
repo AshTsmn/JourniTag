@@ -132,7 +132,7 @@ export function LocationSelectStep({ onLocationSelected, onBack, onClose, upload
   
   try {
     // Call backend geocoding API
-    const response = await fetch('http://localhost:8000/api/geocode', {
+    const response = await fetch('/api/geocode', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

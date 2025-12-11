@@ -33,7 +33,7 @@ export default function Friends() {
 
   const loadFriends = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/friends', {
+      const response = await fetch('/api/friends', {
         credentials: 'include'
       });
       const data = await response.json();
@@ -45,7 +45,7 @@ export default function Friends() {
 
   const loadTrips = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/trips', {
+      const response = await fetch('/api/trips', {
         credentials: 'include'
       });
       const data = await response.json();
@@ -57,7 +57,7 @@ export default function Friends() {
 
   const loadSharedWith = async (tripId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${tripId}/shared-with`, {
+      const response = await fetch(`/api/trips/${tripId}/shared-with`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -73,7 +73,7 @@ export default function Friends() {
       return;
     }
     try {
-      const response = await fetch(`http://localhost:8000/api/friends/search?query=${searchQuery}`, {
+      const response = await fetch(`/api/friends/search?query=${searchQuery}`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -93,7 +93,7 @@ export default function Friends() {
     setPendingRequests(prev => ({ ...prev, [user.id]: true }));
 
     try {
-      const response = await fetch('http://localhost:8000/api/friends/add', {
+      const response = await fetch('/api/friends/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -124,7 +124,7 @@ export default function Friends() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/friends/${friend.id}`, {
+      const response = await fetch(`/api/friends/${friend.id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -152,7 +152,7 @@ export default function Friends() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${selectedTrip.id}/share`, {
+      const response = await fetch(`/api/trips/${selectedTrip.id}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

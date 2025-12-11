@@ -137,7 +137,7 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
     const run = async () => {
       if (!firstCoordinates) return
       try {
-        const resp = await fetch('http://localhost:8000/api/geocode', {
+        const resp = await fetch('/api/geocode', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ latitude: firstCoordinates.y, longitude: firstCoordinates.x }),
@@ -200,7 +200,7 @@ export function QuickUploadModal({ isOpen, onClose, onUploadComplete }: QuickUpl
     try {
       const form = new FormData()
       imgs.forEach(f => form.append('files', f))
-      const r = await fetch('http://localhost:8000/api/photos/extract-exif', { method: 'POST', body: form })
+      const r = await fetch('/api/photos/extract-exif', { method: 'POST', body: form })
       if (!r.ok) throw new Error('EXIF request failed')
       const data = await r.json()
       if (!data?.success) throw new Error(data?.error || 'EXIF parse failed')

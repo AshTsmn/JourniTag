@@ -31,7 +31,7 @@ export function ShareTripModal({ isOpen, trip, onClose }: ShareTripModalProps) {
 
   const fetchFriends = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/friends', {
+      const response = await fetch('/api/friends', {
         credentials: 'include'
       })
       const data = await response.json()
@@ -47,7 +47,7 @@ export function ShareTripModal({ isOpen, trip, onClose }: ShareTripModalProps) {
 
   const fetchSharedWith = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${trip.id}/shared-with`, {
+      const response = await fetch(`/api/trips/${trip.id}/shared-with`, {
         credentials: 'include'
       })
       const data = await response.json()
@@ -62,7 +62,7 @@ export function ShareTripModal({ isOpen, trip, onClose }: ShareTripModalProps) {
   const shareTrip = async (friendId: number) => {
     setSharing(friendId)
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${trip.id}/share`, {
+      const response = await fetch(`/api/trips/${trip.id}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -82,7 +82,7 @@ export function ShareTripModal({ isOpen, trip, onClose }: ShareTripModalProps) {
   const unshareTrip = async (friendId: number) => {
     setSharing(friendId)
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${trip.id}/unshare`, {
+      const response = await fetch(`/api/trips/${trip.id}/unshare`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -7,7 +7,7 @@ import { Marker, Popup } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import type { Photo } from '@/types'
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = ''
 
 interface PhotoMarkerProps {
   photo: Photo

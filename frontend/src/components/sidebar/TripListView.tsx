@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import type { Trip } from '@/types'
 import { cn } from '@/lib/utils'
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = ''
 
 interface SharedTrip extends Trip {
   owner_username?: string

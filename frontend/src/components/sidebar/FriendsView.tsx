@@ -94,7 +94,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const fetchFriends = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/friends', {
+      const response = await fetch('/api/friends', {
         credentials: 'include'
       })
       const data = await response.json()
@@ -110,7 +110,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const fetchFriendRequests = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/friends/requests', {
+      const response = await fetch('/api/friends/requests', {
         credentials: 'include'
       })
       const data = await response.json()
@@ -125,7 +125,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const fetchTrips = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/trips', {
+      const response = await fetch('/api/trips', {
         credentials: 'include'
       })
       const data = await response.json()
@@ -145,7 +145,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
     setIsSearching(true)
     try {
-      const response = await fetch(`http://localhost:8000/api/friends/search?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`/api/friends/search?query=${encodeURIComponent(query)}`, {
         credentials: 'include'
       })
       const data = await response.json()
@@ -163,7 +163,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const sendFriendRequest = async (user: User) => {
     try {
-      const response = await fetch('http://localhost:8000/api/friends/request', {
+      const response = await fetch('/api/friends/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -188,7 +188,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const removeFriend = async (user: User) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/friends/${user.id}`, {
+      const response = await fetch(`/api/friends/${user.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -204,7 +204,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const acceptRequest = async (request: FriendRequest) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/friends/requests/${request.id}/accept`, {
+      const response = await fetch(`/api/friends/requests/${request.id}/accept`, {
         method: 'POST',
         credentials: 'include'
       })
@@ -228,7 +228,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const deleteRequest = async (request: FriendRequest) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/friends/requests/${request.id}`, {
+      const response = await fetch(`/api/friends/requests/${request.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -244,7 +244,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
 
   const fetchSharedWith = async (tripId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${tripId}/shared-with`, {
+      const response = await fetch(`/api/trips/${tripId}/shared-with`, {
         credentials: 'include'
       })
       const data = await response.json()
@@ -260,7 +260,7 @@ export function FriendsView({ shareTripId, onShareHandled }: FriendsViewProps) {
     if (!selectedTrip) return
 
     try {
-      const response = await fetch(`http://localhost:8000/api/trips/${selectedTrip.id}/share`, {
+      const response = await fetch(`/api/trips/${selectedTrip.id}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
